@@ -33,3 +33,21 @@ pub fn pick(list: &[String], n: usize) -> Vec<String> {
     }
     out
 }
+
+/// Built-in languages, then user word lists from `<config>/words/`.
+pub fn available() -> Vec<String> {
+    let mut langs = vec!["english".to_string(), "french".to_string()];
+    let dir = crate::dirs().map(|d| d.config_dir().join("words"));
+    if let Some(entries) = dir.and_then(|d| std::fs::read_dir(d).ok()) {
+        let mut user: Vec<String> = entries
+            .filter_map(|e| {
+                let p = e.ok()?.path();
+                (p.extension()? == "txt").then(|| p.file_stem()?.to_str().map(str::to_string))?
+            })
+            .filter(|l| !langs.contains(l))
+            .collect();
+        user.sort();
+        langs.extend(user);
+    }
+    langs
+}

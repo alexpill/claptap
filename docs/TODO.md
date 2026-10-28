@@ -26,8 +26,8 @@ Add items when you find work that is missing here.
 
 ## Phase 2 — Modes and options
 
-- [ ] Mode/option menu inside the app (no need to restart with flags): time 15/30/60/120, words 10/25/50/100
-- [ ] Punctuation and numbers toggles
+- [x] Config bar inside the app (`esc` focuses it, `←→`/`hl` + `enter`): mode, time 15/30/60/120, words 10/25/50/100, language (built-in + user lists)
+- [ ] Punctuation and numbers toggles (as extra config bar groups)
 - [ ] Quote mode (built-in quotes file per language, quote length filter)
 - [ ] Zen mode (free typing, no target, ends on Esc)
 - [ ] Remember last used mode/lang between runs (state file in data dir)

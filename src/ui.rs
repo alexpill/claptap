@@ -7,7 +7,7 @@ use ratatui::symbols::Marker;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Axis, Block, BorderType, Chart, Dataset, GraphType, Paragraph};
 
-use crate::app::{App, Screen};
+use crate::app::{App, Item, Screen};
 use crate::typing::{Limit, Stats, Test};
 
 const ACCENT: Color = Color::Cyan;
@@ -24,25 +24,70 @@ fn panel(title: &str) -> Block<'_> {
 }
 
 pub fn draw(f: &mut Frame, app: &App, now: Instant) {
-    let [top, body, help] =
-        Layout::vertical([Constraint::Length(3), Constraint::Fill(1), Constraint::Length(1)]).areas(f.area());
+    let [top, bar, body, help] = Layout::vertical([
+        Constraint::Length(3),
+        Constraint::Length(1),
+        Constraint::Fill(1),
+        Constraint::Length(1),
+    ])
+    .areas(f.area());
 
     let mode = format!("{} {} · {}", app.limit.name(), app.limit.value(), app.lang);
     let top_block = panel("claptap").title(Line::from(format!(" {mode} ")).right_aligned().fg(DIM));
     f.render_widget(Paragraph::new(top_line(app, now)).block(top_block), top);
+    f.render_widget(Paragraph::new(config_bar(app)).alignment(Alignment::Center), bar);
 
     match &app.screen {
         Screen::Typing => draw_typing(f, &app.test, body),
-        Screen::Results(stats) => draw_results(f, stats, app.save_error.as_deref(), body),
+        Screen::Results(stats) => draw_results(f, stats, body),
     }
 
-    let keys = Line::from(vec![
-        "tab".fg(ACCENT),
-        " restart  ".fg(DIM),
-        "esc".fg(ACCENT),
-        " quit".fg(DIM),
-    ]);
-    f.render_widget(Paragraph::new(keys).alignment(Alignment::Center), help);
+    let keys: &[(&str, &str)] = if app.menu.is_some() {
+        &[
+            ("←→ hl", "move"),
+            ("enter", "select"),
+            ("esc", "back"),
+            ("q", "quit"),
+        ]
+    } else {
+        &[("tab", "restart"), ("esc", "menu"), ("ctrl+c", "quit")]
+    };
+    let line = match &app.error {
+        Some(e) => Line::from(e.clone().fg(BAD)),
+        None => Line::from_iter(
+            keys.iter()
+                .flat_map(|(k, a)| [k.fg(ACCENT), format!(" {a}  ").fg(DIM)]),
+        ),
+    };
+    f.render_widget(Paragraph::new(line).alignment(Alignment::Center), help);
+}
+
+/// Monkeytype-style option bar: dim until focused with esc, current choices highlighted.
+fn config_bar(app: &App) -> Line<'static> {
+    let items = app.menu_items();
+    let mut spans = Vec::new();
+    for (i, item) in items.iter().enumerate() {
+        if i > 0 && std::mem::discriminant(item) != std::mem::discriminant(&items[i - 1]) {
+            spans.push(" │ ".fg(DIM));
+        } else if i > 0 {
+            spans.push(" ".into());
+        }
+        let label = match item {
+            Item::Mode(m) => m.name().to_string(),
+            Item::Length(n) => n.to_string(),
+            Item::Lang(l) => l.clone(),
+        };
+        let mut style = match (app.is_selected(item), app.menu.is_some()) {
+            (true, _) => Style::new().fg(ACCENT).bold(),
+            (false, true) => Style::new(),
+            (false, false) => Style::new().fg(DIM),
+        };
+        if app.menu == Some(i) {
+            style = style.reversed();
+        }
+        spans.push(Span::styled(label, style));
+    }
+    Line::from(spans)
 }
 
 fn top_line(app: &App, now: Instant) -> Line<'static> {
@@ -137,7 +182,7 @@ fn word_lines(test: &Test, width: usize) -> (Vec<Line<'static>>, usize) {
     (lines, cursor_line)
 }
 
-fn draw_results(f: &mut Frame, stats: &Stats, save_error: Option<&str>, area: Rect) {
+fn draw_results(f: &mut Frame, stats: &Stats, area: Rect) {
     let [summary, chart] = Layout::vertical([Constraint::Length(4), Constraint::Fill(1)]).areas(area);
 
     let items = [
@@ -197,10 +242,7 @@ fn draw_results(f: &mut Frame, stats: &Stats, save_error: Option<&str>, area: Re
             .data(&errors),
     ];
     let label = |v: f64| Span::from(format!("{v:.0}")).fg(DIM);
-    let mut block = panel("wpm / second");
-    if let Some(e) = save_error {
-        block = block.title_bottom(Line::from(format!(" {e} ")).fg(BAD));
-    }
+    let block = panel("wpm / second");
     let chart_widget = Chart::new(datasets)
         .block(block)
         .x_axis(

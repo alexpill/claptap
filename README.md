@@ -18,7 +18,8 @@ claptap --words 25         # type 25 words
 claptap --lang french      # built-in: english, french
 ```
 
-Keys: `tab` restarts, `esc` quits.
+Keys: `tab` restarts, `esc` focuses the option bar (mode, length, language; move with `←→` or `hl`,
+`enter` to pick, `esc` to go back, `q` to quit), `ctrl+c` quits.
 
 Custom word lists: put whitespace-separated words in `~/.config/claptap/words/<name>.txt`
 and run `claptap --lang <name>`. A file named `english.txt` or `french.txt` replaces the built-in list.
