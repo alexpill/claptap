@@ -1,3 +1,5 @@
+use crate::typing::Next;
+
 /// A keyboard layout on an ISO board: the unshifted character of each key, row by row
 /// (number row, top, home, bottom). Fingers depend on the physical position only, so they are shared.
 pub struct Layout {
@@ -36,7 +38,8 @@ const FINGERS: [&[u8]; 4] = [
     &[0, 0, 1, 2, 3, 3, 4, 4, 5, 6, 7],
 ];
 pub const THUMB: u8 = 8;
-pub const RIGHT_PINKY: u8 = 7;
+const LEFT_PINKY: u8 = 0;
+const RIGHT_PINKY: u8 = 7;
 
 pub const FINGER_NAMES: [&str; 9] = [
     "left pinky",
@@ -84,9 +87,67 @@ impl Layout {
     }
 }
 
+/// What to press next and with which fingers.
+#[derive(Debug, PartialEq)]
+pub struct Hint {
+    /// The key on the board, None for space, backspace or a character missing from the layout.
+    pub key: Option<Key>,
+    /// The finger for the key, then the shift pinky if needed.
+    pub fingers: Vec<u8>,
+}
+
+impl Layout {
+    pub fn hint(&self, next: Next) -> Hint {
+        match next {
+            Next::Backspace => Hint {
+                key: None,
+                fingers: vec![RIGHT_PINKY],
+            },
+            Next::Char(' ') => Hint {
+                key: None,
+                fingers: vec![THUMB],
+            },
+            Next::Char(c) => match self.find(c) {
+                Some(k) => {
+                    let mut fingers = vec![k.finger];
+                    if k.shift {
+                        // Shift with the other hand's pinky.
+                        fingers.push(if k.finger < 4 { RIGHT_PINKY } else { LEFT_PINKY });
+                    }
+                    Hint {
+                        key: Some(k),
+                        fingers,
+                    }
+                }
+                None => Hint {
+                    key: None,
+                    fingers: vec![],
+                },
+            },
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hints() {
+        let q = &LAYOUTS[0];
+        assert_eq!(q.hint(Next::Char('f')).fingers, vec![3]);
+        assert_eq!(q.hint(Next::Char('F')).fingers, vec![3, RIGHT_PINKY]);
+        assert_eq!(q.hint(Next::Char('P')).fingers, vec![7, LEFT_PINKY]);
+        assert_eq!(
+            q.hint(Next::Char(' ')),
+            Hint {
+                key: None,
+                fingers: vec![THUMB]
+            }
+        );
+        assert_eq!(q.hint(Next::Backspace).fingers, vec![RIGHT_PINKY]);
+        assert!(q.hint(Next::Char('ê')).fingers.is_empty());
+    }
 
     #[test]
     fn rows_match_finger_map() {

@@ -274,33 +274,54 @@ fn draw_stratagem(f: &mut Frame, drill: &Drill, area: Rect, now: Instant) {
 const KEYBOARD_HEIGHT: u16 = 9;
 /// Left offset of each key row, in columns: ISO stagger with 4-column keys (tab 1.5, caps 1.75, shift 1.25).
 const ROW_OFFSETS: [usize; 4] = [0, 6, 7, 5];
-const ROW_PREFIX: [&str; 4] = ["", " tab  ", " caps  ", "  ⇧  "];
-const ROW_SUFFIX: [&str; 4] = [" ⌫", "", "", " ⇧"];
-/// Key cells: background for idle keys, accent for the next key and its finger's zone.
-const KEY_BG: Color = Color::Indexed(236);
+const ROW_PREFIX: [&str; 4] = ["", " ⇥", " ⇪", " ⇧"];
+const ROW_SUFFIX: [&str; 4] = [" ⌫", "", "", "  ⇧"];
+/// Columns where the space bar starts (under C on QWERTY) and its width.
+const SPACE_AT: usize = 17;
+const SPACE_WIDTH: usize = 19;
+
+/// (vivid, dim) colors per finger kind: pinky, ring, middle, index, thumb. Same on both hands.
+const FINGER_COLORS: [(u8, u8); 5] = [(170, 53), (75, 24), (114, 22), (221, 58), (250, 238)];
+const FINGER_KIND: [usize; 9] = [0, 1, 2, 3, 3, 2, 1, 0, 4];
+const FINGER_SHORT: [&str; 5] = ["pinky", "ring", "middle", "index", "thumb"];
+
+fn finger_color(finger: u8, vivid: bool) -> Color {
+    let (v, d) = FINGER_COLORS[FINGER_KIND[finger as usize]];
+    Color::Indexed(if vivid { v } else { d })
+}
+
+/// Key cell: dim background of its finger's color, vivid when that finger is up next,
+/// white for the key itself (bold too, so it never relies on color alone).
+fn key_style(finger: u8, active: &[u8], target: bool) -> Style {
+    match (target, active.contains(&finger)) {
+        (true, _) => Style::new().bg(Color::Indexed(231)).fg(Color::Indexed(16)).bold(),
+        (false, true) => Style::new().bg(finger_color(finger, true)).fg(Color::Indexed(16)),
+        (false, false) => Style::new()
+            .bg(finger_color(finger, false))
+            .fg(Color::Indexed(252)),
+    }
+}
 
 fn draw_keyboard(f: &mut Frame, layout: &KeyLayout, next: Option<Next>, area: Rect) {
-    let target = match next {
-        Some(Next::Char(' ')) => None,
-        Some(Next::Char(c)) => layout.find(c),
-        _ => None,
-    };
-    let finger = match next {
-        Some(Next::Char(' ')) => Some(keyboard::THUMB),
-        Some(Next::Backspace) => Some(keyboard::RIGHT_PINKY),
-        _ => target.as_ref().map(|k| k.finger),
-    };
+    let hint = next.map(|n| layout.hint(n));
+    let active: &[u8] = hint.as_ref().map_or(&[], |h| &h.fingers);
+    let target = hint.as_ref().and_then(|h| h.key.as_ref());
+    let shift_on = target.is_some_and(|k| k.shift);
 
     let mut lines = Vec::new();
     for (row, keys) in layout.rows.iter().enumerate() {
-        let mut spans = vec![Span::from(format!("{:>w$}", ROW_PREFIX[row], w = ROW_OFFSETS[row])).fg(DIM)];
+        let prefix_style = if row == 3 && shift_on && active.contains(&0) {
+            Style::new().fg(finger_color(0, true)).bold()
+        } else {
+            DIM.into()
+        };
+        let mut spans = vec![Span::styled(
+            format!("{:<w$}", ROW_PREFIX[row], w = ROW_OFFSETS[row]),
+            prefix_style,
+        )];
         for (col, k) in keys.chars().enumerate() {
-            let is_target = target.as_ref().is_some_and(|t| (t.row, t.col) == (row, col));
-            let mut style = match (is_target, finger == Some(keyboard::finger(row, col))) {
-                (true, _) => Style::new().bg(ACCENT).fg(Color::Black).bold(),
-                (false, true) => Style::new().bg(KEY_BG).fg(ACCENT),
-                (false, false) => Style::new().bg(KEY_BG).fg(Color::Gray),
-            };
+            let is_target = target.is_some_and(|t| (t.row, t.col) == (row, col));
+            let mut style = key_style(keyboard::finger(row, col), active, is_target);
             // The bumps on F and J (home row index keys).
             if row == 2 && (col == 3 || col == 6) {
                 style = style.underlined();
@@ -308,51 +329,128 @@ fn draw_keyboard(f: &mut Frame, layout: &KeyLayout, next: Option<Next>, area: Re
             spans.push(Span::styled(format!(" {k} "), style));
             spans.push(" ".into());
         }
-        let backspace = row == 0 && next == Some(Next::Backspace);
-        spans.push(Span::from(ROW_SUFFIX[row]).style(if backspace {
-            Style::new().fg(BAD).bold()
-        } else {
-            DIM.into()
-        }));
+        let suffix_style = match (row, next) {
+            (0, Some(Next::Backspace)) => Style::new().fg(BAD).bold(),
+            (3, _) if shift_on && active.contains(&7) => Style::new().fg(finger_color(7, true)).bold(),
+            _ => DIM.into(),
+        };
+        spans.push(Span::styled(ROW_SUFFIX[row], suffix_style));
         lines.push(Line::from(spans));
     }
-    let space_style = match next {
-        Some(Next::Char(' ')) => Style::new().bg(ACCENT).fg(Color::Black).bold(),
-        _ => Style::new().bg(KEY_BG).fg(DIM),
-    };
+    let space = key_style(keyboard::THUMB, active, false);
     lines.push(Line::from(vec![
-        " ".repeat(17).into(),
-        Span::styled(format!("{:^19}", "space"), space_style),
+        " ".repeat(SPACE_AT).into(),
+        Span::styled(format!("{:^SPACE_WIDTH$}", "space"), space),
     ]));
+    lines.push(Line::default());
 
-    let hint = match (next, &target) {
-        (Some(Next::Backspace), _) => vec!["⌫ backspace".fg(BAD).bold(), "  right pinky".fg(DIM)],
-        (Some(Next::Char(' ')), _) => vec!["space".fg(ACCENT).bold(), "  thumb".fg(DIM)],
+    let text = match (next, target) {
+        (Some(Next::Backspace), _) => vec!["⌫ backspace".fg(BAD).bold(), "  ·  right pinky".fg(DIM)],
+        (Some(Next::Char(' ')), _) => vec!["space".bold(), "  ·  thumb".fg(DIM)],
         (Some(Next::Char(c)), Some(k)) => {
             let mut v = vec![
-                c.to_string().fg(ACCENT).bold(),
-                format!("  {}", FINGER_NAMES[k.finger as usize]).fg(DIM),
+                c.to_string().bold(),
+                format!("  ·  {}", FINGER_NAMES[k.finger as usize]).fg(DIM),
             ];
             if k.shift {
-                // Shift with the other hand's pinky.
-                let shift = if k.finger < 4 { "right" } else { "left" };
-                v.push(format!(" + {shift} pinky on ⇧").fg(DIM));
+                v.push(format!(" + {} on ⇧", FINGER_NAMES[active[1] as usize]).fg(DIM));
             }
             v
         }
-        (Some(Next::Char(c)), None) => vec![format!("{c} not on {}", layout.name).fg(DIM)],
+        (Some(Next::Char(c)), None) => vec![format!("{c} is not on {}", layout.name).fg(DIM)],
         (None, _) => vec![],
     };
-    lines.push(Line::default());
-    lines.push(Line::from(hint));
+    lines.push(Line::from(text).centered());
 
-    let width = lines.iter().map(|l| l.width()).max().unwrap_or(0) as u16;
+    let board_width = lines.iter().map(|l| l.width()).max().unwrap_or(0) as u16;
+    let hands = hands(active);
+    let hands_width = hands.iter().map(|l| l.width()).max().unwrap_or(0) as u16;
+    let gap = 4;
+    let with_hands = area.width >= board_width + gap + hands_width + 4;
+    let width = if with_hands {
+        board_width + gap + hands_width
+    } else {
+        board_width
+    };
     let rect = centered(area, (width + 4).min(area.width), KEYBOARD_HEIGHT);
     let block = panel(layout.name).padding(ratatui::widgets::Padding::horizontal(1));
-    let hint = lines.pop().unwrap();
-    let mut para_lines = lines;
-    para_lines.push(hint.centered());
-    f.render_widget(Paragraph::new(para_lines).block(block), rect);
+    let inner = block.inner(rect);
+    f.render_widget(block, rect);
+    let [board, _, right] = Layout::horizontal([
+        Constraint::Length(board_width),
+        Constraint::Length(gap),
+        Constraint::Fill(1),
+    ])
+    .areas(inner);
+    f.render_widget(Paragraph::new(lines), board);
+    if with_hands {
+        f.render_widget(Paragraph::new(hands), right);
+    }
+}
+
+/// Two hands drawn with box characters, fingers colored like their keys; the active ones filled.
+fn hands(active: &[u8]) -> Vec<Line<'static>> {
+    // Fingers left to right on screen: left pinky..index, then right index..pinky.
+    const HEIGHTS: [usize; 8] = [2, 3, 4, 3, 3, 4, 3, 2];
+    const GAP: &str = "      ";
+    let finger_cell = |finger: u8, row: usize| -> Span<'static> {
+        let h = HEIGHTS[finger as usize];
+        let on = active.contains(&finger);
+        let glyph = match (row + h).cmp(&4) {
+            std::cmp::Ordering::Less => return " ".into(),
+            std::cmp::Ordering::Equal => {
+                if on {
+                    "▄"
+                } else {
+                    "╻"
+                }
+            }
+            std::cmp::Ordering::Greater => {
+                if on {
+                    "█"
+                } else {
+                    "┃"
+                }
+            }
+        };
+        Span::styled(glyph, Style::new().fg(finger_color(finger, true)))
+    };
+    let mut lines = Vec::new();
+    for row in 0..4 {
+        let mut spans = Vec::new();
+        for finger in 0..4u8 {
+            spans.push(finger_cell(finger, row));
+            spans.push(" ".into());
+        }
+        spans.push(format!(" {GAP} ").into());
+        for finger in 4..8u8 {
+            spans.push(" ".into());
+            spans.push(finger_cell(finger, row));
+        }
+        lines.push(Line::from(spans));
+    }
+    let thumb = if active.contains(&keyboard::THUMB) {
+        Style::new().fg(finger_color(keyboard::THUMB, true)).bold()
+    } else {
+        DIM.into()
+    };
+    lines.push(Line::from("╰─┴─┴─┴─╮      ╭─┴─┴─┴─╯".fg(DIM)));
+    lines.push(Line::from(vec![
+        "        ╰─ ".fg(DIM),
+        Span::styled("▂▂", thumb),
+        " ─╯".fg(DIM),
+    ]));
+    let label = match active.first() {
+        Some(&f) if f == keyboard::THUMB => "thumb".to_string(),
+        Some(&f) => format!(
+            "{} · {}",
+            if f < 4 { "left" } else { "right" },
+            FINGER_SHORT[FINGER_KIND[f as usize]]
+        ),
+        None => String::new(),
+    };
+    lines.push(Line::from(format!("{label:^23}").fg(DIM)));
+    lines
 }
 
 /// A boxed row of label/value columns.
