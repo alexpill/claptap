@@ -3,27 +3,85 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::history::{self, Record};
+use crate::stratagem::{Dir, Drill, DrillStats};
 use crate::typing::{Limit, Stats, Test};
 use crate::words;
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Mode {
+    Time,
+    Words,
+    Stratagem,
+}
+
+impl Mode {
+    pub const ALL: [Mode; 3] = [Mode::Time, Mode::Words, Mode::Stratagem];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Mode::Time => "time",
+            Mode::Words => "words",
+            Mode::Stratagem => "stratagem",
+        }
+    }
+
+    fn lengths(self) -> &'static [u64] {
+        match self {
+            Mode::Time | Mode::Stratagem => &[15, 30, 60, 120],
+            Mode::Words => &[10, 25, 50, 100],
+        }
+    }
+
+    fn default_length(self) -> u64 {
+        match self {
+            Mode::Words => 25,
+            _ => 30,
+        }
+    }
+}
+
+pub enum Game {
+    Typing(Test),
+    Stratagem(Drill),
+}
+
+impl Game {
+    fn started(&self) -> bool {
+        match self {
+            Game::Typing(t) => t.started(),
+            Game::Stratagem(d) => d.started(),
+        }
+    }
+
+    fn finished(&self) -> bool {
+        match self {
+            Game::Typing(t) => t.finished(),
+            Game::Stratagem(d) => d.finished(),
+        }
+    }
+}
+
 pub enum Screen {
-    Typing,
+    Playing,
     Results(Stats),
+    StratagemResults(DrillStats),
 }
 
 /// One choice in the config bar.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Item {
-    Mode(Limit),
+    Mode(Mode),
     Length(u64),
     Lang(String),
 }
 
 pub struct App {
-    pub test: Test,
+    pub game: Game,
     pub screen: Screen,
+    pub mode: Mode,
+    /// Seconds for time and stratagem modes, word count for words mode.
+    pub length: u64,
     pub lang: String,
-    pub limit: Limit,
     /// Error shown in the help line (history save, bad word list).
     pub error: Option<String>,
     /// Cursor position in the config bar while it has focus.
@@ -32,65 +90,71 @@ pub struct App {
     list: Vec<String>,
 }
 
-const TIMES: [u64; 4] = [15, 30, 60, 120];
-const WORD_COUNTS: [u64; 4] = [10, 25, 50, 100];
-
 /// Words kept ahead of the cursor in time mode.
 const TIME_MODE_BUFFER: usize = 50;
 
 impl App {
-    pub fn new(lang: String, limit: Limit) -> Result<Self, String> {
+    pub fn new(lang: String, mode: Mode, length: u64) -> Result<Self, String> {
         let list = words::load(&lang)?;
-        let test = new_test(&list, limit);
-        Ok(App {
-            test,
-            screen: Screen::Typing,
+        let mut app = App {
+            game: Game::Stratagem(Drill::new(0)),
+            screen: Screen::Playing,
+            mode,
+            length: length.max(1),
             lang,
-            limit,
             error: None,
             menu: None,
             langs: words::available(),
             list,
-        })
+        };
+        app.restart();
+        Ok(app)
     }
 
     pub fn restart(&mut self) {
-        self.test = new_test(&self.list, self.limit);
-        self.screen = Screen::Typing;
+        self.game = match self.mode {
+            Mode::Time => Game::Typing(Test::new(
+                words::pick(&self.list, TIME_MODE_BUFFER * 2),
+                Limit::Time(self.length),
+            )),
+            Mode::Words => Game::Typing(Test::new(
+                words::pick(&self.list, self.length as usize),
+                Limit::Words(self.length as usize),
+            )),
+            Mode::Stratagem => Game::Stratagem(Drill::new(self.length)),
+        };
+        self.screen = Screen::Playing;
         self.error = None;
     }
 
     /// Config bar contents, in display order. Groups are told apart by variant.
     pub fn menu_items(&self) -> Vec<Item> {
-        let lengths: &[u64] = match self.limit {
-            Limit::Time(_) => &TIMES,
-            Limit::Words(_) => &WORD_COUNTS,
+        let langs = if self.mode == Mode::Stratagem {
+            &[][..]
+        } else {
+            &self.langs[..]
         };
-        [Item::Mode(Limit::Time(30)), Item::Mode(Limit::Words(25))]
+        Mode::ALL
             .into_iter()
-            .chain(lengths.iter().map(|&n| Item::Length(n)))
-            .chain(self.langs.iter().map(|l| Item::Lang(l.clone())))
+            .map(Item::Mode)
+            .chain(self.mode.lengths().iter().map(|&n| Item::Length(n)))
+            .chain(langs.iter().map(|l| Item::Lang(l.clone())))
             .collect()
     }
 
     pub fn is_selected(&self, item: &Item) -> bool {
         match item {
-            Item::Mode(m) => m.name() == self.limit.name(),
-            Item::Length(n) => *n == self.limit.value(),
+            Item::Mode(m) => *m == self.mode,
+            Item::Length(n) => *n == self.length,
             Item::Lang(l) => *l == self.lang,
         }
     }
 
     fn select(&mut self, item: Item) {
         match item {
-            Item::Mode(m) if m.name() != self.limit.name() => self.limit = m,
+            Item::Mode(m) if m != self.mode => (self.mode, self.length) = (m, m.default_length()),
             Item::Mode(_) => {}
-            Item::Length(n) => {
-                self.limit = match self.limit {
-                    Limit::Time(_) => Limit::Time(n),
-                    Limit::Words(_) => Limit::Words(n as usize),
-                }
-            }
+            Item::Length(n) => self.length = n,
             Item::Lang(l) => match words::load(&l) {
                 Ok(list) => (self.lang, self.list) = (l, list),
                 Err(e) => {
@@ -131,65 +195,105 @@ impl App {
         match key.code {
             KeyCode::Esc => {
                 // Leaving a running test for the menu abandons it.
-                if self.test.started() && !self.test.finished() {
+                if self.game.started() && !self.game.finished() {
                     self.restart();
                 }
                 self.menu = Some(0);
             }
             KeyCode::Tab => self.restart(),
-            KeyCode::Backspace if matches!(self.screen, Screen::Typing) => self.test.backspace(),
-            KeyCode::Char(c) if !ctrl && matches!(self.screen, Screen::Typing) => {
-                self.test.type_char(c, now);
-                if let Limit::Time(_) = self.limit
-                    && self.test.words.len() - self.test.typed.len() < TIME_MODE_BUFFER
-                {
-                    self.test.words.extend(words::pick(&self.list, TIME_MODE_BUFFER));
+            _ if !matches!(self.screen, Screen::Playing) || ctrl => {}
+            code => match &mut self.game {
+                Game::Typing(test) => match code {
+                    KeyCode::Backspace => test.backspace(),
+                    KeyCode::Char(c) => {
+                        test.type_char(c, now);
+                        if self.mode == Mode::Time && test.words.len() - test.typed.len() < TIME_MODE_BUFFER {
+                            test.words.extend(words::pick(&self.list, TIME_MODE_BUFFER));
+                        }
+                    }
+                    _ => {}
+                },
+                Game::Stratagem(drill) => {
+                    if let Some(dir) = direction(code) {
+                        drill.input(dir, now);
+                    }
                 }
-            }
-            _ => {}
+            },
         }
         self.finish_if_done(now);
         false
     }
 
     pub fn tick(&mut self, now: Instant) {
-        self.test.tick(now);
+        match &mut self.game {
+            Game::Typing(t) => {
+                t.tick(now);
+            }
+            Game::Stratagem(d) => d.tick(now),
+        }
         self.finish_if_done(now);
     }
 
     fn finish_if_done(&mut self, now: Instant) {
-        if !matches!(self.screen, Screen::Typing) || !self.test.finished() {
+        if !matches!(self.screen, Screen::Playing) || !self.game.finished() {
             return;
         }
-        let stats = self.test.stats(now);
-        let record = Record {
+        let mut record = Record {
             timestamp: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .map_or(0, |d| d.as_secs()),
-            mode: self.limit.name().to_string(),
-            mode_value: self.limit.value(),
+            mode: self.mode.name().to_string(),
+            mode_value: self.length,
             language: self.lang.clone(),
-            wpm: stats.wpm,
-            raw: stats.raw,
-            accuracy: stats.accuracy,
-            consistency: stats.consistency,
-            correct_chars: stats.correct_chars,
-            incorrect_chars: stats.incorrect_chars,
-            duration: stats.duration,
+            wpm: 0.0,
+            raw: 0.0,
+            accuracy: 0.0,
+            consistency: 0.0,
+            correct_chars: 0,
+            incorrect_chars: 0,
+            duration: 0.0,
+        };
+        self.screen = match &self.game {
+            Game::Typing(test) => {
+                let s = test.stats(now);
+                record.wpm = s.wpm;
+                record.raw = s.raw;
+                record.accuracy = s.accuracy;
+                record.consistency = s.consistency;
+                record.correct_chars = s.correct_chars;
+                record.incorrect_chars = s.incorrect_chars;
+                record.duration = s.duration;
+                Screen::Results(s)
+            }
+            Game::Stratagem(drill) => {
+                let s = drill.stats(now);
+                // See Record docs for how stratagem rounds map onto these fields.
+                record.language = String::new();
+                record.wpm = s.per_minute;
+                record.raw = s.inputs_per_minute;
+                record.accuracy = s.accuracy;
+                record.correct_chars = s.completed;
+                record.incorrect_chars = s.errors as usize;
+                record.duration = s.duration;
+                Screen::StratagemResults(s)
+            }
         };
         self.error = history::append(&record)
             .err()
             .map(|e| format!("history not saved: {e}"));
-        self.screen = Screen::Results(stats);
     }
 }
 
-fn new_test(list: &[String], limit: Limit) -> Test {
-    let n = match limit {
-        Limit::Words(n) => n,
-        Limit::Time(_) => TIME_MODE_BUFFER * 2,
-    };
-    Test::new(words::pick(list, n), limit)
+/// Arrow keys, plus hjkl.
+// shortcut: hjkl always on; gate it behind `vim_mode` (default true) once config exists (phase 5).
+fn direction(code: KeyCode) -> Option<Dir> {
+    match code {
+        KeyCode::Up | KeyCode::Char('k') => Some(Dir::Up),
+        KeyCode::Down | KeyCode::Char('j') => Some(Dir::Down),
+        KeyCode::Left | KeyCode::Char('h') => Some(Dir::Left),
+        KeyCode::Right | KeyCode::Char('l') => Some(Dir::Right),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -203,30 +307,60 @@ mod tests {
 
     #[test]
     fn menu_switches_mode_and_length() {
-        let mut app = App::new("english".into(), Limit::Time(30)).unwrap();
+        let mut app = App::new("english".into(), Mode::Time, 30).unwrap();
         press(&mut app, KeyCode::Esc);
         assert_eq!(app.menu, Some(0));
         // Cursor to "words", select it: defaults to 25 words.
         press(&mut app, KeyCode::Char('l'));
         press(&mut app, KeyCode::Enter);
-        assert_eq!(app.limit, Limit::Words(25));
-        assert_eq!(app.test.words.len(), 25);
-        // Next item is the first word count.
+        assert_eq!((app.mode, app.length), (Mode::Words, 25));
+        let Game::Typing(test) = &app.game else { panic!() };
+        assert_eq!(test.words.len(), 25);
+        // Skip "stratagem", then the first word count.
+        press(&mut app, KeyCode::Right);
         press(&mut app, KeyCode::Right);
         press(&mut app, KeyCode::Char(' '));
-        assert_eq!(app.limit, Limit::Words(10));
+        assert_eq!(app.length, 10);
         // Esc closes the menu, q is then typed, not quit.
         press(&mut app, KeyCode::Esc);
         assert!(!press(&mut app, KeyCode::Char('q')));
-        assert_eq!(app.test.typed[0], "q");
+        let Game::Typing(test) = &app.game else { panic!() };
+        assert_eq!(test.typed[0], "q");
     }
 
     #[test]
     fn esc_abandons_running_test() {
-        let mut app = App::new("english".into(), Limit::Words(10)).unwrap();
+        let mut app = App::new("english".into(), Mode::Words, 10).unwrap();
         press(&mut app, KeyCode::Char('a'));
         press(&mut app, KeyCode::Esc);
-        assert!(!app.test.started());
+        assert!(!app.game.started());
         assert!(press(&mut app, KeyCode::Char('q')));
+    }
+
+    #[test]
+    fn stratagem_mode_takes_arrows_and_hjkl() {
+        let mut app = App::new("english".into(), Mode::Stratagem, 30).unwrap();
+        assert!(!app.menu_items().iter().any(|i| matches!(i, Item::Lang(_))));
+        let Game::Stratagem(drill) = &app.game else {
+            panic!()
+        };
+        let code = drill.current().code;
+        for (i, dir) in code.iter().enumerate() {
+            let key = match (dir, i % 2) {
+                (Dir::Up, 0) => KeyCode::Up,
+                (Dir::Up, _) => KeyCode::Char('k'),
+                (Dir::Down, 0) => KeyCode::Down,
+                (Dir::Down, _) => KeyCode::Char('j'),
+                (Dir::Left, 0) => KeyCode::Left,
+                (Dir::Left, _) => KeyCode::Char('h'),
+                (Dir::Right, 0) => KeyCode::Right,
+                (Dir::Right, _) => KeyCode::Char('l'),
+            };
+            press(&mut app, key);
+        }
+        let Game::Stratagem(drill) = &app.game else {
+            panic!()
+        };
+        assert_eq!(drill.times.len(), 1);
     }
 }

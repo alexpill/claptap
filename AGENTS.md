@@ -14,20 +14,23 @@ configurable keybindings and word lists, and a first-class Nix package.
 
 ## Status
 
-Phases 0 and 1 in `docs/TODO.md` are done: a playable time/words test with a results graph and
-JSONL history. Pick the next unchecked item in phase order.
+Phases 0 and 1 are done, plus parts of 2 (in-app config bar) and 4 (stratagem drill).
+Pick the next unchecked item in phase order.
 
 ## Stack
 
 - Rust 2024 (MSRV 1.88), `ratatui` (its re-exported `crossterm` for input; no direct crossterm dep)
 - `clap` (derive) for CLI, `serde` / `serde_json` for history, `directories` for XDG paths, `rand`
-- Nix flake: `packages.default`, `overlays.default`, `devShells.default`
+- Nix flake: `packages.default`, `overlays.default`, `devShells.default`. Nix is optional:
+  the project must always build and be developed with plain cargo. Don't commit `.envrc`
+  or anything that makes Nix or direnv required.
 
 ## Layout
 
 - `src/main.rs` — CLI args, terminal init/restore, event loop
-- `src/app.rs` — app state, screens, key handling, saving results
+- `src/app.rs` — app state, modes, config bar, key handling, saving results
 - `src/typing.rs` — pure test logic and stats (WPM, raw, accuracy, consistency, per-second samples); unit-tested
+- `src/stratagem.rs` — stratagem drill: built-in codes, round logic and stats; unit-tested
 - `src/ui.rs` — all rendering
 - `src/words.rs` — built-in (`words/*.txt`, embedded) and user word lists
 - `src/history.rs` — `history.jsonl` records

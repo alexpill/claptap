@@ -5,6 +5,10 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 /// One finished test, stored as a line of `<data>/history.jsonl`.
+///
+/// Stratagem rounds (`mode = "stratagem"`) reuse the fields: `wpm` = stratagems per minute,
+/// `raw` = inputs per minute, `correct_chars` = stratagems completed, `incorrect_chars` = wrong
+/// inputs, `language` is empty and `consistency` is 0.
 // shortcut: append-only JSONL read fully into memory; move to SQLite if history gets past ~100k runs.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Record {

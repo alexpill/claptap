@@ -6,7 +6,7 @@ Dense, boxed panels and braille graphs in the spirit of `btop`, built with
 [ratatui](https://ratatui.rs). Type, get your WPM, accuracy and a per-second graph, and keep a
 history of every run.
 
-> Early days: the core typing test works. See [docs/TODO.md](docs/TODO.md) for the roadmap
+> Early days: the typing test and the stratagem drill work. See [docs/TODO.md](docs/TODO.md) for the roadmap
 > (stats dashboard, Helldivers-style stratagem mode, config, themes, Nix module).
 
 ## Usage
@@ -16,7 +16,15 @@ claptap                    # 30 s test, English
 claptap --time 60          # 60 s test
 claptap --words 25         # type 25 words
 claptap --lang french      # built-in: english, french
+claptap --stratagem        # stratagem drill: enter arrow codes against the clock
 ```
+
+### Stratagem mode
+
+Inspired by Helldivers: a named stratagem and its arrow code show up, enter it as fast as you can
+with the arrow keys or `hjkl`. A wrong input resets the code. Finish as many as possible before
+the timer runs out; you get stratagems per minute, accuracy, average time and best streak (codes
+entered without a mistake in a row), plus a graph of the time each one took.
 
 Keys: `tab` restarts, `esc` focuses the option bar (mode, length, language; move with `←→` or `hl`,
 `enter` to pick, `esc` to go back, `q` to quit), `ctrl+c` quits.
@@ -38,16 +46,27 @@ Or add the flake as an input and use `packages.<system>.default` or `overlays.de
 
 ### Cargo
 
+Any Rust toolchain ≥ 1.88 works, no Nix needed:
+
 ```sh
 cargo install --git https://github.com/alexpill/claptap
 ```
 
 ## Development
 
+Plain Rust (rustup or your distro's toolchain, ≥ 1.88):
+
 ```sh
-nix develop          # or: direnv allow
 cargo run -- --words 10
 cargo test
+cargo clippy --all-targets -- -D warnings
+```
+
+With Nix (optional): `nix develop` gives a shell with cargo, clippy, rustfmt and rust-analyzer.
+To enter it automatically with direnv, create your own `.envrc` (it is git-ignored):
+
+```sh
+echo "use flake" > .envrc && direnv allow
 ```
 
 ## License

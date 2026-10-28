@@ -1,5 +1,6 @@
 mod app;
 mod history;
+mod stratagem;
 mod typing;
 mod ui;
 mod words;
@@ -10,22 +11,24 @@ use clap::Parser;
 use directories::ProjectDirs;
 use ratatui::crossterm::event::{self, Event, KeyEventKind};
 
-use app::App;
-use typing::Limit;
+use app::{App, Mode};
 
-/// A typing test for the terminal.
+/// A typing test for the terminal, with a stratagem-code drill.
 #[derive(Parser)]
 #[command(version)]
 struct Args {
     /// Word list: built-in (english, french) or <config>/words/<name>.txt
     #[arg(short, long, default_value = "english")]
     lang: String,
-    /// Time mode: test length in seconds
+    /// Time mode: test length in seconds (also the stratagem round length)
     #[arg(short, long, default_value_t = 30, conflicts_with = "words")]
     time: u64,
     /// Words mode: number of words to type
     #[arg(short, long)]
-    words: Option<usize>,
+    words: Option<u64>,
+    /// Stratagem mode: enter arrow codes (arrows or hjkl) against the clock
+    #[arg(short, long, conflicts_with = "words")]
+    stratagem: bool,
 }
 
 pub fn dirs() -> Option<ProjectDirs> {
@@ -34,11 +37,12 @@ pub fn dirs() -> Option<ProjectDirs> {
 
 fn main() {
     let args = Args::parse();
-    let limit = match args.words {
-        Some(n) => Limit::Words(n.max(1)),
-        None => Limit::Time(args.time.max(1)),
+    let (mode, length) = match (args.words, args.stratagem) {
+        (Some(n), _) => (Mode::Words, n),
+        (None, true) => (Mode::Stratagem, args.time),
+        (None, false) => (Mode::Time, args.time),
     };
-    let mut app = match App::new(args.lang, limit) {
+    let mut app = match App::new(args.lang, mode, length) {
         Ok(app) => app,
         Err(e) => {
             eprintln!("claptap: {e}");

@@ -6,22 +6,6 @@ pub enum Limit {
     Words(usize),
 }
 
-impl Limit {
-    pub fn name(self) -> &'static str {
-        match self {
-            Limit::Time(_) => "time",
-            Limit::Words(_) => "words",
-        }
-    }
-
-    pub fn value(self) -> u64 {
-        match self {
-            Limit::Time(s) => s,
-            Limit::Words(n) => n as u64,
-        }
-    }
-}
-
 /// One second of the test, used for the results graph.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Sample {

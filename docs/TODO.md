@@ -7,6 +7,7 @@ Add items when you find work that is missing here.
 
 - [x] Cargo project, MIT license, README, AGENTS.md, CLAUDE.md, .gitignore, .editorconfig
 - [x] Nix flake: `packages.default`, `overlays.default`, `devShells.default`, `formatter`
+- [x] Nix stays optional: plain cargo works, `.envrc` is git-ignored (documented in README)
 - [x] GitHub Actions: fmt, clippy, test, `nix build`, `nix flake check`
 - [x] Private GitHub repo
 
@@ -45,13 +46,18 @@ Add items when you find work that is missing here.
 
 ## Phase 4 — Stratagem mode (Helldivers-style)
 
-- [ ] Data model: named stratagem = sequence of directions; built-in list (original names, not copied from the game)
-- [ ] Input: arrow keys always; `hjkl` (and optionally `wasd`) when `vim_mode = true` (default on)
-- [ ] Display: big arrow glyphs, progress highlight, wrong input resets the sequence with a flash
-- [ ] Game loop: timed round, chain of stratagems, combo/streak, score
-- [ ] Results: stratagems per minute, accuracy, average time per stratagem, graph
-- [ ] Saved to history with `mode = "stratagem"`, shown in the stats dashboard
+- [x] Data model: named stratagem = sequence of directions; built-in list with our own names (`src/stratagem.rs`)
+- [x] Input: arrow keys and `hjkl`
+- [ ] Gate `hjkl` behind `vim_mode` (default true) once config exists; optional `wasd`
+- [x] Display: arrows, progress highlight, wrong input resets the code with a red flash, next stratagems queue
+- [ ] Big multi-line arrow glyphs (btop-like) when the terminal is large enough
+- [x] Game loop: timed round (15/30/60/120 s from the config bar or `--stratagem --time N`), streak
+- [x] Results: done, per minute, accuracy, average time, best streak, graph of seconds per stratagem
+- [x] Saved to history with `mode = "stratagem"` (field mapping documented on `history::Record`)
+- [ ] Shown in the stats dashboard (phase 3)
+- [ ] Other round types: fixed count ("10 stratagems, fastest time"), sudden death (first mistake ends it)
 - [ ] User-defined stratagems in config
+- [ ] Optional sound/bell on success and failure
 
 ## Phase 5 — Configuration
 
