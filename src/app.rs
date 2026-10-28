@@ -3,6 +3,7 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::history::{self, Record};
+use crate::keyboard::LAYOUTS;
 use crate::stratagem::{Dir, Drill, DrillStats};
 use crate::typing::{Limit, Stats, Test};
 use crate::words;
@@ -73,6 +74,8 @@ pub enum Item {
     Mode(Mode),
     Length(u64),
     Lang(String),
+    /// Cycles through keyboard layouts, then off.
+    Keyboard,
 }
 
 pub struct App {
@@ -86,6 +89,8 @@ pub struct App {
     pub error: Option<String>,
     /// Cursor position in the config bar while it has focus.
     pub menu: Option<usize>,
+    /// On-screen keyboard layout (index into `LAYOUTS`), None when hidden.
+    pub layout: Option<usize>,
     langs: Vec<String>,
     list: Vec<String>,
 }
@@ -94,7 +99,7 @@ pub struct App {
 const TIME_MODE_BUFFER: usize = 50;
 
 impl App {
-    pub fn new(lang: String, mode: Mode, length: u64) -> Result<Self, String> {
+    pub fn new(lang: String, mode: Mode, length: u64, layout: Option<usize>) -> Result<Self, String> {
         let list = words::load(&lang)?;
         let mut app = App {
             game: Game::Stratagem(Drill::new(0)),
@@ -104,6 +109,7 @@ impl App {
             lang,
             error: None,
             menu: None,
+            layout,
             langs: words::available(),
             list,
         };
@@ -139,6 +145,7 @@ impl App {
             .map(Item::Mode)
             .chain(self.mode.lengths().iter().map(|&n| Item::Length(n)))
             .chain(langs.iter().map(|l| Item::Lang(l.clone())))
+            .chain((self.mode != Mode::Stratagem).then_some(Item::Keyboard))
             .collect()
     }
 
@@ -147,6 +154,7 @@ impl App {
             Item::Mode(m) => *m == self.mode,
             Item::Length(n) => *n == self.length,
             Item::Lang(l) => *l == self.lang,
+            Item::Keyboard => self.layout.is_some(),
         }
     }
 
@@ -155,6 +163,15 @@ impl App {
             Item::Mode(m) if m != self.mode => (self.mode, self.length) = (m, m.default_length()),
             Item::Mode(_) => {}
             Item::Length(n) => self.length = n,
+            Item::Keyboard => {
+                // Display only: keep the running test.
+                self.layout = match self.layout {
+                    None => Some(0),
+                    Some(i) if i + 1 < LAYOUTS.len() => Some(i + 1),
+                    Some(_) => None,
+                };
+                return;
+            }
             Item::Lang(l) => match words::load(&l) {
                 Ok(list) => (self.lang, self.list) = (l, list),
                 Err(e) => {
@@ -307,7 +324,7 @@ mod tests {
 
     #[test]
     fn menu_switches_mode_and_length() {
-        let mut app = App::new("english".into(), Mode::Time, 30).unwrap();
+        let mut app = App::new("english".into(), Mode::Time, 30, Some(0)).unwrap();
         press(&mut app, KeyCode::Esc);
         assert_eq!(app.menu, Some(0));
         // Cursor to "words", select it: defaults to 25 words.
@@ -321,6 +338,12 @@ mod tests {
         press(&mut app, KeyCode::Right);
         press(&mut app, KeyCode::Char(' '));
         assert_eq!(app.length, 10);
+        // Last item cycles the keyboard layout without restarting.
+        for _ in 0..20 {
+            press(&mut app, KeyCode::Right);
+        }
+        press(&mut app, KeyCode::Enter);
+        assert_eq!(app.layout, Some(1));
         // Esc closes the menu, q is then typed, not quit.
         press(&mut app, KeyCode::Esc);
         assert!(!press(&mut app, KeyCode::Char('q')));
@@ -330,7 +353,7 @@ mod tests {
 
     #[test]
     fn esc_abandons_running_test() {
-        let mut app = App::new("english".into(), Mode::Words, 10).unwrap();
+        let mut app = App::new("english".into(), Mode::Words, 10, Some(0)).unwrap();
         press(&mut app, KeyCode::Char('a'));
         press(&mut app, KeyCode::Esc);
         assert!(!app.game.started());
@@ -339,8 +362,12 @@ mod tests {
 
     #[test]
     fn stratagem_mode_takes_arrows_and_hjkl() {
-        let mut app = App::new("english".into(), Mode::Stratagem, 30).unwrap();
-        assert!(!app.menu_items().iter().any(|i| matches!(i, Item::Lang(_))));
+        let mut app = App::new("english".into(), Mode::Stratagem, 30, Some(0)).unwrap();
+        assert!(
+            !app.menu_items()
+                .iter()
+                .any(|i| matches!(i, Item::Lang(_) | Item::Keyboard))
+        );
         let Game::Stratagem(drill) = &app.game else {
             panic!()
         };

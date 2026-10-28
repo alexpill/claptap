@@ -33,6 +33,17 @@ Add items when you find work that is missing here.
 - [ ] Zen mode (free typing, no target, ends on Esc)
 - [ ] Remember last used mode/lang between runs (state file in data dir)
 
+## Phase 2b — On-screen keyboard
+
+- [x] ISO keyboard under the words: next key highlighted, its finger's keys tinted, finger named
+- [x] Layouts: qwerty, azerty, qwertz, colemak, dvorak (`--layout`, `⌨` item in the config bar, `off`)
+- [x] Shift hint for capitals (other hand's pinky), backspace hint when the word has a mistake
+- [ ] Shifted symbols, AZERTY digits, dead keys (ê, ü...) once punctuation/numbers exist
+- [ ] ANSI board (no ISO key next to left shift, wide enter) and more layouts (bépo, workman...)
+- [ ] User layouts in config
+- [ ] Per-finger stats: errors and speed by finger/key, heatmap on the keyboard in results
+- [ ] Show the keyboard in stratagem mode with arrows/hjkl highlighted
+
 ## Phase 3 — History and stats dashboard
 
 - [ ] `history::read_all()` tolerant of bad lines (skip + count them)

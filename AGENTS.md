@@ -31,6 +31,7 @@ Pick the next unchecked item in phase order.
 - `src/app.rs` — app state, modes, config bar, key handling, saving results
 - `src/typing.rs` — pure test logic and stats (WPM, raw, accuracy, consistency, per-second samples); unit-tested
 - `src/stratagem.rs` — stratagem drill: built-in codes, round logic and stats; unit-tested
+- `src/keyboard.rs` — keyboard layouts (ISO rows per layout) and the shared position → finger map; unit-tested
 - `src/ui.rs` — all rendering
 - `src/words.rs` — built-in (`words/*.txt`, embedded) and user word lists
 - `src/history.rs` — `history.jsonl` records

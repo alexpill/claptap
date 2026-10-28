@@ -1,5 +1,6 @@
 mod app;
 mod history;
+mod keyboard;
 mod stratagem;
 mod typing;
 mod ui;
@@ -29,6 +30,9 @@ struct Args {
     /// Stratagem mode: enter arrow codes (arrows or hjkl) against the clock
     #[arg(short, long, conflicts_with = "words")]
     stratagem: bool,
+    /// On-screen keyboard: qwerty, azerty, qwertz, colemak, dvorak, or off
+    #[arg(short = 'k', long, default_value = "qwerty")]
+    layout: String,
 }
 
 pub fn dirs() -> Option<ProjectDirs> {
@@ -42,7 +46,19 @@ fn main() {
         (None, true) => (Mode::Stratagem, args.time),
         (None, false) => (Mode::Time, args.time),
     };
-    let mut app = match App::new(args.lang, mode, length) {
+    let layout = match (args.layout.as_str(), keyboard::Layout::by_name(&args.layout)) {
+        ("off", _) => None,
+        (_, Some(i)) => Some(i),
+        (name, None) => {
+            let names: Vec<_> = keyboard::LAYOUTS.iter().map(|l| l.name).collect();
+            eprintln!(
+                "claptap: unknown layout '{name}' (available: {}, off)",
+                names.join(", ")
+            );
+            std::process::exit(2);
+        }
+    };
+    let mut app = match App::new(args.lang, mode, length, layout) {
         Ok(app) => app,
         Err(e) => {
             eprintln!("claptap: {e}");

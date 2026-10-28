@@ -17,7 +17,14 @@ claptap --time 60          # 60 s test
 claptap --words 25         # type 25 words
 claptap --lang french      # built-in: english, french
 claptap --stratagem        # stratagem drill: enter arrow codes against the clock
+claptap --layout azerty    # on-screen keyboard: qwerty (default), azerty, qwertz, colemak, dvorak, off
 ```
+
+### On-screen keyboard
+
+Below the words, an ISO keyboard in your layout lights up the next key and its finger's zone,
+and names the finger to use (plus shift with the other hand for capitals, backspace when the
+current word has a mistake). Change or hide it from the option bar (`⌨` item).
 
 ### Stratagem mode
 

@@ -8,8 +8,9 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Axis, Block, BorderType, Chart, Dataset, GraphType, Paragraph};
 
 use crate::app::{App, Game, Item, Mode, Screen};
+use crate::keyboard::{self, FINGER_NAMES, Layout as KeyLayout};
 use crate::stratagem::{self, Drill, DrillStats};
-use crate::typing::{Stats, Test};
+use crate::typing::{Next, Stats, Test};
 
 const ACCENT: Color = Color::Cyan;
 const DIM: Color = Color::DarkGray;
@@ -42,7 +43,15 @@ pub fn draw(f: &mut Frame, app: &App, now: Instant) {
     f.render_widget(Paragraph::new(config_bar(app)).alignment(Alignment::Center), bar);
 
     match (&app.screen, &app.game) {
-        (Screen::Playing, Game::Typing(test)) => draw_typing(f, test, body),
+        (Screen::Playing, Game::Typing(test)) => match app.layout {
+            Some(i) if body.height >= KEYBOARD_HEIGHT + VISIBLE_LINES as u16 + 4 => {
+                let [words, keys] =
+                    Layout::vertical([Constraint::Fill(1), Constraint::Length(KEYBOARD_HEIGHT)]).areas(body);
+                draw_typing(f, test, words);
+                draw_keyboard(f, &keyboard::LAYOUTS[i], test.next_key(), keys);
+            }
+            _ => draw_typing(f, test, body),
+        },
         (Screen::Playing, Game::Stratagem(drill)) => draw_stratagem(f, drill, body, now),
         (Screen::Results(stats), _) => draw_results(f, stats, body),
         (Screen::StratagemResults(stats), _) => draw_stratagem_results(f, stats, body),
@@ -90,6 +99,7 @@ fn config_bar(app: &App) -> Line<'static> {
             Item::Mode(m) => m.name().to_string(),
             Item::Length(n) => n.to_string(),
             Item::Lang(l) => l.clone(),
+            Item::Keyboard => format!("⌨ {}", app.layout.map_or("off", |i| keyboard::LAYOUTS[i].name)),
         };
         let mut style = match (app.is_selected(item), app.menu.is_some()) {
             (true, _) => Style::new().fg(ACCENT).bold(),
@@ -259,6 +269,90 @@ fn draw_stratagem(f: &mut Frame, drill: &Drill, area: Rect, now: Instant) {
             .block(panel(title)),
         rect,
     );
+}
+
+const KEYBOARD_HEIGHT: u16 = 9;
+/// Left offset of each key row, in columns: ISO stagger with 4-column keys (tab 1.5, caps 1.75, shift 1.25).
+const ROW_OFFSETS: [usize; 4] = [0, 6, 7, 5];
+const ROW_PREFIX: [&str; 4] = ["", " tab  ", " caps  ", "  ⇧  "];
+const ROW_SUFFIX: [&str; 4] = [" ⌫", "", "", " ⇧"];
+/// Key cells: background for idle keys, accent for the next key and its finger's zone.
+const KEY_BG: Color = Color::Indexed(236);
+
+fn draw_keyboard(f: &mut Frame, layout: &KeyLayout, next: Option<Next>, area: Rect) {
+    let target = match next {
+        Some(Next::Char(' ')) => None,
+        Some(Next::Char(c)) => layout.find(c),
+        _ => None,
+    };
+    let finger = match next {
+        Some(Next::Char(' ')) => Some(keyboard::THUMB),
+        Some(Next::Backspace) => Some(keyboard::RIGHT_PINKY),
+        _ => target.as_ref().map(|k| k.finger),
+    };
+
+    let mut lines = Vec::new();
+    for (row, keys) in layout.rows.iter().enumerate() {
+        let mut spans = vec![Span::from(format!("{:>w$}", ROW_PREFIX[row], w = ROW_OFFSETS[row])).fg(DIM)];
+        for (col, k) in keys.chars().enumerate() {
+            let is_target = target.as_ref().is_some_and(|t| (t.row, t.col) == (row, col));
+            let mut style = match (is_target, finger == Some(keyboard::finger(row, col))) {
+                (true, _) => Style::new().bg(ACCENT).fg(Color::Black).bold(),
+                (false, true) => Style::new().bg(KEY_BG).fg(ACCENT),
+                (false, false) => Style::new().bg(KEY_BG).fg(Color::Gray),
+            };
+            // The bumps on F and J (home row index keys).
+            if row == 2 && (col == 3 || col == 6) {
+                style = style.underlined();
+            }
+            spans.push(Span::styled(format!(" {k} "), style));
+            spans.push(" ".into());
+        }
+        let backspace = row == 0 && next == Some(Next::Backspace);
+        spans.push(Span::from(ROW_SUFFIX[row]).style(if backspace {
+            Style::new().fg(BAD).bold()
+        } else {
+            DIM.into()
+        }));
+        lines.push(Line::from(spans));
+    }
+    let space_style = match next {
+        Some(Next::Char(' ')) => Style::new().bg(ACCENT).fg(Color::Black).bold(),
+        _ => Style::new().bg(KEY_BG).fg(DIM),
+    };
+    lines.push(Line::from(vec![
+        " ".repeat(17).into(),
+        Span::styled(format!("{:^19}", "space"), space_style),
+    ]));
+
+    let hint = match (next, &target) {
+        (Some(Next::Backspace), _) => vec!["⌫ backspace".fg(BAD).bold(), "  right pinky".fg(DIM)],
+        (Some(Next::Char(' ')), _) => vec!["space".fg(ACCENT).bold(), "  thumb".fg(DIM)],
+        (Some(Next::Char(c)), Some(k)) => {
+            let mut v = vec![
+                c.to_string().fg(ACCENT).bold(),
+                format!("  {}", FINGER_NAMES[k.finger as usize]).fg(DIM),
+            ];
+            if k.shift {
+                // Shift with the other hand's pinky.
+                let shift = if k.finger < 4 { "right" } else { "left" };
+                v.push(format!(" + {shift} pinky on ⇧").fg(DIM));
+            }
+            v
+        }
+        (Some(Next::Char(c)), None) => vec![format!("{c} not on {}", layout.name).fg(DIM)],
+        (None, _) => vec![],
+    };
+    lines.push(Line::default());
+    lines.push(Line::from(hint));
+
+    let width = lines.iter().map(|l| l.width()).max().unwrap_or(0) as u16;
+    let rect = centered(area, (width + 4).min(area.width), KEYBOARD_HEIGHT);
+    let block = panel(layout.name).padding(ratatui::widgets::Padding::horizontal(1));
+    let hint = lines.pop().unwrap();
+    let mut para_lines = lines;
+    para_lines.push(hint.centered());
+    f.render_widget(Paragraph::new(para_lines).block(block), rect);
 }
 
 /// A boxed row of label/value columns.

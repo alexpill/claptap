@@ -29,6 +29,13 @@ pub struct Stats {
     pub samples: Vec<Sample>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Next {
+    Char(char),
+    /// The current word has a mistake to erase first.
+    Backspace,
+}
+
 pub struct Test {
     pub words: Vec<String>,
     /// What the user typed for each word so far; the last entry is the current word.
@@ -106,6 +113,21 @@ impl Test {
         // The last word ends the test without a trailing space, like monkeytype.
         if self.typed.len() == self.words.len() && self.typed[i] == self.words[i] {
             self.end = Some(now);
+        }
+    }
+
+    /// The key the user should press next, for the on-screen keyboard.
+    pub fn next_key(&self) -> Option<Next> {
+        if self.finished() {
+            return None;
+        }
+        let i = self.typed.len() - 1;
+        let rest = self.words[i].strip_prefix(self.typed[i].as_str());
+        match rest.map(|r| r.chars().next()) {
+            None => Some(Next::Backspace),
+            Some(Some(c)) => Some(Next::Char(c)),
+            Some(None) if i + 1 < self.words.len() => Some(Next::Char(' ')),
+            Some(None) => None,
         }
     }
 
@@ -254,6 +276,23 @@ mod tests {
         type_str(&mut t, "ab ", Instant::now(), 10);
         t.backspace();
         assert_eq!(t.typed, vec!["ab", ""]);
+    }
+
+    #[test]
+    fn next_key_follows_input() {
+        let mut t = test(&["ab", "c"], Limit::Words(2));
+        let now = Instant::now();
+        assert_eq!(t.next_key(), Some(Next::Char('a')));
+        t.type_char('a', now);
+        t.type_char('b', now);
+        assert_eq!(t.next_key(), Some(Next::Char(' ')));
+        t.type_char('x', now);
+        assert_eq!(t.next_key(), Some(Next::Backspace));
+        t.backspace();
+        t.type_char(' ', now);
+        assert_eq!(t.next_key(), Some(Next::Char('c')));
+        t.type_char('c', now);
+        assert_eq!(t.next_key(), None);
     }
 
     #[test]
