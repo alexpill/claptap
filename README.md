@@ -17,15 +17,15 @@ claptap --time 60          # 60 s test
 claptap --words 25         # type 25 words
 claptap --lang french      # built-in: english, french
 claptap --stratagem        # stratagem drill: enter arrow codes against the clock
-claptap --layout azerty    # on-screen keyboard: qwerty (default), azerty, qwertz, colemak, dvorak, off
+claptap --hands --layout azerty   # show the keyboard + hands guide: qwerty (default), azerty, qwertz, colemak, dvorak
 ```
 
 ### On-screen keyboard
 
-Below the words, an ISO keyboard in your layout lights up the next key and its finger's zone,
+Opt-in: `H` in normal mode or `--hands`. Below the words, an ISO keyboard in your layout lights up the next key and its finger's zone,
 and names the finger to use (plus shift with the other hand for capitals, backspace when the
-current word has a mistake). Change or hide it from the option bar (`⌨` item). Drawn hands with
-the finger to use are opt-in: `H` in normal mode, `hands` in the option bar, or `--hands`.
+current word has a mistake), next to two drawn hands with the finger(s) to use filled in.
+The `⌨` item in the option bar cycles the layout and lights up while the keyboard is shown.
 
 ### Stratagem mode
 
@@ -34,9 +34,9 @@ with the arrow keys or `hjkl`. A wrong input resets the code. Finish as many as 
 the timer runs out; you get stratagems per minute, accuracy, average time and best streak (codes
 entered without a mistake in a row), plus a graph of the time each one took.
 
-Keys: `tab` restarts, `ctrl+c` quits, `esc` enters normal mode, where the option bar has focus:
-`←→`/`hl` move, `enter` picks, `H` shows/hides the hands, `?` opens the help, `esc` goes back to
-typing and `q` quits.
+Keys: `tab` restarts, `ctrl+c` quits, `esc` enters normal mode (orange `NORMAL` badge, the
+option bar has focus): `←→`/`hl` move, `enter` picks, `H` shows/hides the keyboard and hands, `?`
+opens the help, `esc` goes back to typing (`INSERT`) and `q` quits.
 
 Custom word lists: put whitespace-separated words in `~/.config/claptap/words/<name>.txt`
 and run `claptap --lang <name>`. A file named `english.txt` or `french.txt` replaces the built-in list.

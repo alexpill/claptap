@@ -15,6 +15,8 @@ use crate::typing::{Next, Stats, Test};
 const ACCENT: Color = Color::Cyan;
 const DIM: Color = Color::DarkGray;
 const BAD: Color = Color::Red;
+/// Normal mode (option bar focused): orange, far from the cyan accent used while typing.
+const NORMAL: Color = Color::Indexed(208);
 /// Lines of words shown at once while typing.
 const VISIBLE_LINES: usize = 3;
 
@@ -38,17 +40,20 @@ pub fn draw(f: &mut Frame, app: &App, now: Instant) {
     if app.mode != Mode::Stratagem {
         mode = format!("{mode} · {}", app.lang);
     }
-    let top_block = panel("claptap").title(Line::from(format!(" {mode} ")).right_aligned().fg(DIM));
+    let mut top_block = panel("claptap").title(Line::from(format!(" {mode} ")).right_aligned().fg(DIM));
+    if app.menu.is_some() {
+        top_block = top_block.border_style(Style::new().fg(NORMAL));
+    }
     f.render_widget(Paragraph::new(top_line(app, now)).block(top_block), top);
     f.render_widget(Paragraph::new(config_bar(app)).alignment(Alignment::Center), bar);
 
     match (&app.screen, &app.game) {
         (Screen::Playing, Game::Typing(test)) => match app.layout {
-            Some(i) if body.height >= KEYBOARD_HEIGHT + VISIBLE_LINES as u16 + 4 => {
+            i if app.hands && body.height >= KEYBOARD_HEIGHT + VISIBLE_LINES as u16 + 4 => {
                 let [words, keys] =
                     Layout::vertical([Constraint::Fill(1), Constraint::Length(KEYBOARD_HEIGHT)]).areas(body);
                 draw_typing(f, test, words);
-                draw_keyboard(f, &keyboard::LAYOUTS[i], test.next_key(), app.hands, keys);
+                draw_keyboard(f, &keyboard::LAYOUTS[i], test.next_key(), keys);
             }
             _ => draw_typing(f, test, body),
         },
@@ -61,7 +66,7 @@ pub fn draw(f: &mut Frame, app: &App, now: Instant) {
         &[
             ("←→ hl", "move"),
             ("enter", "select"),
-            ("H", "hands"),
+            ("H", "keyboard"),
             ("?", "help"),
             ("esc", "back"),
             ("q", "quit"),
@@ -85,6 +90,22 @@ pub fn draw(f: &mut Frame, app: &App, now: Instant) {
         ),
     };
     f.render_widget(Paragraph::new(line).alignment(Alignment::Center), help);
+    // Vim-style mode badge, bottom left.
+    let (badge, color) = if app.menu.is_some() {
+        (" NORMAL ", NORMAL)
+    } else {
+        (" INSERT ", ACCENT)
+    };
+    f.render_widget(
+        Paragraph::new(Span::styled(
+            badge,
+            Style::new().bg(color).fg(Color::Black).bold(),
+        )),
+        Rect {
+            width: badge.len() as u16,
+            ..help
+        },
+    );
 
     if app.help {
         draw_help(f, f.area());
@@ -106,7 +127,7 @@ const HELP: &[(&str, &[(&str, &str)])] = &[
         &[
             ("←→ / hl", "move in the option bar"),
             ("enter / space", "pick the option"),
-            ("H", "show / hide the hands"),
+            ("H", "show / hide keyboard and hands"),
             ("?", "this help"),
             ("esc", "back to typing"),
             ("q", "quit"),
@@ -148,8 +169,7 @@ fn config_bar(app: &App) -> Line<'static> {
             Item::Mode(m) => m.name().to_string(),
             Item::Length(n) => n.to_string(),
             Item::Lang(l) => l.clone(),
-            Item::Hands => "hands".to_string(),
-            Item::Keyboard => format!("⌨ {}", app.layout.map_or("off", |i| keyboard::LAYOUTS[i].name)),
+            Item::Keyboard => format!("⌨ {}", keyboard::LAYOUTS[app.layout].name),
         };
         let mut style = match (app.is_selected(item), app.menu.is_some()) {
             (true, _) => Style::new().fg(ACCENT).bold(),
@@ -157,7 +177,7 @@ fn config_bar(app: &App) -> Line<'static> {
             (false, false) => Style::new().fg(DIM),
         };
         if app.menu == Some(i) {
-            style = style.reversed();
+            style = style.bg(NORMAL).fg(Color::Black);
         }
         spans.push(Span::styled(label, style));
     }
@@ -352,7 +372,7 @@ fn key_style(finger: u8, active: &[u8], target: bool) -> Style {
     }
 }
 
-fn draw_keyboard(f: &mut Frame, layout: &KeyLayout, next: Option<Next>, show_hands: bool, area: Rect) {
+fn draw_keyboard(f: &mut Frame, layout: &KeyLayout, next: Option<Next>, area: Rect) {
     let hint = next.map(|n| layout.hint(n));
     let active: &[u8] = hint.as_ref().map_or(&[], |h| &h.fingers);
     let target = hint.as_ref().and_then(|h| h.key.as_ref());
@@ -416,7 +436,7 @@ fn draw_keyboard(f: &mut Frame, layout: &KeyLayout, next: Option<Next>, show_han
     let hands = hands(active);
     let hands_width = hands.iter().map(|l| l.width()).max().unwrap_or(0) as u16;
     let gap = 4;
-    let with_hands = show_hands && area.width >= board_width + gap + hands_width + 4;
+    let with_hands = area.width >= board_width + gap + hands_width + 4;
     let width = if with_hands {
         board_width + gap + hands_width
     } else {

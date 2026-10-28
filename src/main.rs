@@ -30,10 +30,10 @@ struct Args {
     /// Stratagem mode: enter arrow codes (arrows or hjkl) against the clock
     #[arg(short, long, conflicts_with = "words")]
     stratagem: bool,
-    /// On-screen keyboard: qwerty, azerty, qwertz, colemak, dvorak, or off
+    /// Keyboard layout for the on-screen guide: qwerty, azerty, qwertz, colemak, dvorak
     #[arg(short = 'k', long, default_value = "qwerty")]
     layout: String,
-    /// Show the drawn hands next to the keyboard (toggle with H in normal mode)
+    /// Show the on-screen keyboard and hands (toggle with H in normal mode)
     #[arg(long)]
     hands: bool,
 }
@@ -49,13 +49,13 @@ fn main() {
         (None, true) => (Mode::Stratagem, args.time),
         (None, false) => (Mode::Time, args.time),
     };
-    let layout = match (args.layout.as_str(), keyboard::Layout::by_name(&args.layout)) {
-        ("off", _) => None,
-        (_, Some(i)) => Some(i),
-        (name, None) => {
+    let layout = match keyboard::Layout::by_name(&args.layout) {
+        Some(i) => i,
+        None => {
+            let name = &args.layout;
             let names: Vec<_> = keyboard::LAYOUTS.iter().map(|l| l.name).collect();
             eprintln!(
-                "claptap: unknown layout '{name}' (available: {}, off)",
+                "claptap: unknown layout '{name}' (available: {})",
                 names.join(", ")
             );
             std::process::exit(2);
