@@ -33,6 +33,9 @@ struct Args {
     /// On-screen keyboard: qwerty, azerty, qwertz, colemak, dvorak, or off
     #[arg(short = 'k', long, default_value = "qwerty")]
     layout: String,
+    /// Show the drawn hands next to the keyboard (toggle with H in normal mode)
+    #[arg(long)]
+    hands: bool,
 }
 
 pub fn dirs() -> Option<ProjectDirs> {
@@ -58,7 +61,7 @@ fn main() {
             std::process::exit(2);
         }
     };
-    let mut app = match App::new(args.lang, mode, length, layout) {
+    let mut app = match App::new(args.lang, mode, length, layout, args.hands) {
         Ok(app) => app,
         Err(e) => {
             eprintln!("claptap: {e}");

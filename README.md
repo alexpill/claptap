@@ -24,7 +24,8 @@ claptap --layout azerty    # on-screen keyboard: qwerty (default), azerty, qwert
 
 Below the words, an ISO keyboard in your layout lights up the next key and its finger's zone,
 and names the finger to use (plus shift with the other hand for capitals, backspace when the
-current word has a mistake). Change or hide it from the option bar (`⌨` item).
+current word has a mistake). Change or hide it from the option bar (`⌨` item). Drawn hands with
+the finger to use are opt-in: `H` in normal mode, `hands` in the option bar, or `--hands`.
 
 ### Stratagem mode
 
@@ -33,8 +34,9 @@ with the arrow keys or `hjkl`. A wrong input resets the code. Finish as many as 
 the timer runs out; you get stratagems per minute, accuracy, average time and best streak (codes
 entered without a mistake in a row), plus a graph of the time each one took.
 
-Keys: `tab` restarts, `esc` focuses the option bar (mode, length, language; move with `←→` or `hl`,
-`enter` to pick, `esc` to go back, `q` to quit), `ctrl+c` quits.
+Keys: `tab` restarts, `ctrl+c` quits, `esc` enters normal mode, where the option bar has focus:
+`←→`/`hl` move, `enter` picks, `H` shows/hides the hands, `?` opens the help, `esc` goes back to
+typing and `q` quits.
 
 Custom word lists: put whitespace-separated words in `~/.config/claptap/words/<name>.txt`
 and run `claptap --lang <name>`. A file named `english.txt` or `french.txt` replaces the built-in list.

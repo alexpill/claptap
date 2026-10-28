@@ -40,6 +40,8 @@ Add items when you find work that is missing here.
 - [x] Shift hint for capitals (other hand's pinky), backspace hint when the word has a mistake
 - [x] Finger color zones (pinky/ring/middle/index/thumb, vivid for the finger up next) and drawn hands
       beside the board with the active finger(s) filled; hands hidden when the terminal is too narrow
+- [x] Hands are opt-in: `H` in normal mode, `hands` item in the option bar, `--hands`
+- [x] `?` help popup in normal mode
 - [ ] Alternative keyboard styles (mockups discussed): finger columns (split, one column per finger),
       btop keycaps (box per key, ~11 lines), compact (3 letter rows, no border) — `keyboard_style` in config
 - [ ] Respect terminal themes: finger colors come from the theme (phase 6), 16-color fallback

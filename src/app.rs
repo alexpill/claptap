@@ -76,6 +76,8 @@ pub enum Item {
     Lang(String),
     /// Cycles through keyboard layouts, then off.
     Keyboard,
+    /// Shows or hides the drawn hands next to the keyboard.
+    Hands,
 }
 
 pub struct App {
@@ -91,6 +93,10 @@ pub struct App {
     pub menu: Option<usize>,
     /// On-screen keyboard layout (index into `LAYOUTS`), None when hidden.
     pub layout: Option<usize>,
+    /// Drawn hands next to the keyboard (opt-in).
+    pub hands: bool,
+    /// Help popup open (normal mode only).
+    pub help: bool,
     langs: Vec<String>,
     list: Vec<String>,
 }
@@ -99,7 +105,13 @@ pub struct App {
 const TIME_MODE_BUFFER: usize = 50;
 
 impl App {
-    pub fn new(lang: String, mode: Mode, length: u64, layout: Option<usize>) -> Result<Self, String> {
+    pub fn new(
+        lang: String,
+        mode: Mode,
+        length: u64,
+        layout: Option<usize>,
+        hands: bool,
+    ) -> Result<Self, String> {
         let list = words::load(&lang)?;
         let mut app = App {
             game: Game::Stratagem(Drill::new(0)),
@@ -110,6 +122,8 @@ impl App {
             error: None,
             menu: None,
             layout,
+            hands,
+            help: false,
             langs: words::available(),
             list,
         };
@@ -146,6 +160,7 @@ impl App {
             .chain(self.mode.lengths().iter().map(|&n| Item::Length(n)))
             .chain(langs.iter().map(|l| Item::Lang(l.clone())))
             .chain((self.mode != Mode::Stratagem).then_some(Item::Keyboard))
+            .chain((self.mode != Mode::Stratagem).then_some(Item::Hands))
             .collect()
     }
 
@@ -155,6 +170,7 @@ impl App {
             Item::Length(n) => *n == self.length,
             Item::Lang(l) => *l == self.lang,
             Item::Keyboard => self.layout.is_some(),
+            Item::Hands => self.hands,
         }
     }
 
@@ -163,6 +179,10 @@ impl App {
             Item::Mode(m) if m != self.mode => (self.mode, self.length) = (m, m.default_length()),
             Item::Mode(_) => {}
             Item::Length(n) => self.length = n,
+            Item::Hands => {
+                self.hands = !self.hands;
+                return;
+            }
             Item::Keyboard => {
                 // Display only: keep the running test.
                 self.layout = match self.layout {
@@ -188,6 +208,8 @@ impl App {
         match key.code {
             KeyCode::Esc => self.menu = None,
             KeyCode::Char('q') => return true,
+            KeyCode::Char('?') => self.help = true,
+            KeyCode::Char('H') => self.hands = !self.hands,
             KeyCode::Left | KeyCode::Char('h') => self.menu = Some(cursor.saturating_sub(1)),
             KeyCode::Right | KeyCode::Char('l') => self.menu = Some((cursor + 1).min(last)),
             KeyCode::Enter | KeyCode::Char(' ') => {
@@ -205,6 +227,11 @@ impl App {
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
         if ctrl && key.code == KeyCode::Char('c') {
             return true;
+        }
+        if self.help {
+            // Any key closes the help.
+            self.help = false;
+            return false;
         }
         if let Some(cursor) = self.menu {
             return self.menu_key(key, cursor);
@@ -324,7 +351,7 @@ mod tests {
 
     #[test]
     fn menu_switches_mode_and_length() {
-        let mut app = App::new("english".into(), Mode::Time, 30, Some(0)).unwrap();
+        let mut app = App::new("english".into(), Mode::Time, 30, Some(0), false).unwrap();
         press(&mut app, KeyCode::Esc);
         assert_eq!(app.menu, Some(0));
         // Cursor to "words", select it: defaults to 25 words.
@@ -338,12 +365,23 @@ mod tests {
         press(&mut app, KeyCode::Right);
         press(&mut app, KeyCode::Char(' '));
         assert_eq!(app.length, 10);
-        // Last item cycles the keyboard layout without restarting.
+        // Last item toggles the hands, the one before cycles the layout, neither restarts.
         for _ in 0..20 {
             press(&mut app, KeyCode::Right);
         }
+        assert!(!app.hands);
+        press(&mut app, KeyCode::Enter);
+        assert!(app.hands);
+        press(&mut app, KeyCode::Char('H'));
+        assert!(!app.hands);
+        press(&mut app, KeyCode::Left);
         press(&mut app, KeyCode::Enter);
         assert_eq!(app.layout, Some(1));
+        // ? opens the help, any key closes it without acting.
+        press(&mut app, KeyCode::Char('?'));
+        assert!(app.help);
+        assert!(!press(&mut app, KeyCode::Char('q')));
+        assert!(!app.help);
         // Esc closes the menu, q is then typed, not quit.
         press(&mut app, KeyCode::Esc);
         assert!(!press(&mut app, KeyCode::Char('q')));
@@ -353,7 +391,7 @@ mod tests {
 
     #[test]
     fn esc_abandons_running_test() {
-        let mut app = App::new("english".into(), Mode::Words, 10, Some(0)).unwrap();
+        let mut app = App::new("english".into(), Mode::Words, 10, Some(0), false).unwrap();
         press(&mut app, KeyCode::Char('a'));
         press(&mut app, KeyCode::Esc);
         assert!(!app.game.started());
@@ -362,11 +400,11 @@ mod tests {
 
     #[test]
     fn stratagem_mode_takes_arrows_and_hjkl() {
-        let mut app = App::new("english".into(), Mode::Stratagem, 30, Some(0)).unwrap();
+        let mut app = App::new("english".into(), Mode::Stratagem, 30, Some(0), false).unwrap();
         assert!(
             !app.menu_items()
                 .iter()
-                .any(|i| matches!(i, Item::Lang(_) | Item::Keyboard))
+                .any(|i| matches!(i, Item::Lang(_) | Item::Keyboard | Item::Hands))
         );
         let Game::Stratagem(drill) = &app.game else {
             panic!()

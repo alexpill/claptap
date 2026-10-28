@@ -48,7 +48,7 @@ pub fn draw(f: &mut Frame, app: &App, now: Instant) {
                 let [words, keys] =
                     Layout::vertical([Constraint::Fill(1), Constraint::Length(KEYBOARD_HEIGHT)]).areas(body);
                 draw_typing(f, test, words);
-                draw_keyboard(f, &keyboard::LAYOUTS[i], test.next_key(), keys);
+                draw_keyboard(f, &keyboard::LAYOUTS[i], test.next_key(), app.hands, keys);
             }
             _ => draw_typing(f, test, body),
         },
@@ -61,6 +61,8 @@ pub fn draw(f: &mut Frame, app: &App, now: Instant) {
         &[
             ("←→ hl", "move"),
             ("enter", "select"),
+            ("H", "hands"),
+            ("?", "help"),
             ("esc", "back"),
             ("q", "quit"),
         ]
@@ -69,10 +71,10 @@ pub fn draw(f: &mut Frame, app: &App, now: Instant) {
             (Screen::Playing, Mode::Stratagem) => &[
                 ("←↓↑→ hjkl", "code"),
                 ("tab", "restart"),
-                ("esc", "menu"),
+                ("esc", "normal mode"),
                 ("ctrl+c", "quit"),
             ],
-            _ => &[("tab", "restart"), ("esc", "menu"), ("ctrl+c", "quit")],
+            _ => &[("tab", "restart"), ("esc", "normal mode"), ("ctrl+c", "quit")],
         }
     };
     let line = match &app.error {
@@ -83,6 +85,53 @@ pub fn draw(f: &mut Frame, app: &App, now: Instant) {
         ),
     };
     f.render_widget(Paragraph::new(line).alignment(Alignment::Center), help);
+
+    if app.help {
+        draw_help(f, f.area());
+    }
+}
+
+const HELP: &[(&str, &[(&str, &str)])] = &[
+    (
+        "typing",
+        &[
+            ("tab", "restart the test"),
+            ("esc", "normal mode (drops the test)"),
+            ("ctrl+c", "quit"),
+        ],
+    ),
+    ("stratagem", &[("←↓↑→ / hjkl", "enter the code")]),
+    (
+        "normal mode",
+        &[
+            ("←→ / hl", "move in the option bar"),
+            ("enter / space", "pick the option"),
+            ("H", "show / hide the hands"),
+            ("?", "this help"),
+            ("esc", "back to typing"),
+            ("q", "quit"),
+        ],
+    ),
+];
+
+fn draw_help(f: &mut Frame, area: Rect) {
+    let mut lines = Vec::new();
+    for (section, keys) in HELP {
+        if !lines.is_empty() {
+            lines.push(Line::default());
+        }
+        lines.push(Line::from(section.fg(ACCENT).bold()));
+        for (key, action) in keys.iter() {
+            lines.push(Line::from(vec![format!("  {key:<15}").bold(), action.fg(DIM)]));
+        }
+    }
+    lines.push(Line::default());
+    lines.push(Line::from("any key to close".fg(DIM)).centered());
+    let height = lines.len() as u16 + 2;
+    let rect = centered(area, 56.min(area.width), height.min(area.height));
+    f.render_widget(ratatui::widgets::Clear, rect);
+    let block = panel("help").padding(ratatui::widgets::Padding::horizontal(1));
+    f.render_widget(Paragraph::new(lines).block(block), rect);
 }
 
 /// Monkeytype-style option bar: dim until focused with esc, current choices highlighted.
@@ -99,6 +148,7 @@ fn config_bar(app: &App) -> Line<'static> {
             Item::Mode(m) => m.name().to_string(),
             Item::Length(n) => n.to_string(),
             Item::Lang(l) => l.clone(),
+            Item::Hands => "hands".to_string(),
             Item::Keyboard => format!("⌨ {}", app.layout.map_or("off", |i| keyboard::LAYOUTS[i].name)),
         };
         let mut style = match (app.is_selected(item), app.menu.is_some()) {
@@ -302,7 +352,7 @@ fn key_style(finger: u8, active: &[u8], target: bool) -> Style {
     }
 }
 
-fn draw_keyboard(f: &mut Frame, layout: &KeyLayout, next: Option<Next>, area: Rect) {
+fn draw_keyboard(f: &mut Frame, layout: &KeyLayout, next: Option<Next>, show_hands: bool, area: Rect) {
     let hint = next.map(|n| layout.hint(n));
     let active: &[u8] = hint.as_ref().map_or(&[], |h| &h.fingers);
     let target = hint.as_ref().and_then(|h| h.key.as_ref());
@@ -366,7 +416,7 @@ fn draw_keyboard(f: &mut Frame, layout: &KeyLayout, next: Option<Next>, area: Re
     let hands = hands(active);
     let hands_width = hands.iter().map(|l| l.width()).max().unwrap_or(0) as u16;
     let gap = 4;
-    let with_hands = area.width >= board_width + gap + hands_width + 4;
+    let with_hands = show_hands && area.width >= board_width + gap + hands_width + 4;
     let width = if with_hands {
         board_width + gap + hands_width
     } else {
