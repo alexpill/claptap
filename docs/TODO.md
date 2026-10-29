@@ -172,7 +172,7 @@ Graph math (ticks, smoothing, scaling) goes in a pure module (`src/graph.rs`) wi
 - [ ] A few built-in themes (default terminal colors, a dark, a light, a btop-like)
 - [ ] User themes in config; 16-color fallback for basic terminals
   - Detect with `COLORTERM` (truecolor/24bit) and `NO_COLOR` (respect it: no colors at all).
-- [ ] **(v0.1)** Never rely on color alone for errors (underline wrong chars, bold/strike missed ones)
+- [x] **(v0.1)** Never rely on color alone for errors: wrong = bold + underlined, extra = struck out, missed = dim + underlined, stratagem error flash = reversed
 
 ## Phase 7 — Packaging and release
 

@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style, Stylize};
+use ratatui::style::{Color, Style, Stylize};
 use ratatui::symbols::Marker;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Axis, Block, BorderType, Chart, Dataset, GraphType, Paragraph};
@@ -283,9 +283,10 @@ fn word_lines(test: &Test, width: usize) -> (Vec<Line<'static>>, usize) {
         for j in 0..len {
             let (ch, mut style) = match (target.get(j), typed.get(j)) {
                 (Some(t), Some(c)) if t == c => (*t, Style::new().fg(Color::Reset)),
-                (Some(t), Some(_)) => (*t, Style::new().fg(BAD)),
+                // Never color alone: wrong is bold + underlined, extra is struck out, missed is dim + underlined.
+                (Some(t), Some(_)) => (*t, Style::new().fg(BAD).bold().underlined()),
                 // Extra characters typed past the end of the word.
-                (None, Some(c)) => (*c, Style::new().fg(BAD).add_modifier(Modifier::DIM)),
+                (None, Some(c)) => (*c, Style::new().fg(BAD).crossed_out()),
                 (Some(t), None) if i < current => (*t, Style::new().fg(DIM).underlined()),
                 (Some(t), None) => (*t, Style::new().fg(DIM)),
                 (None, None) => unreachable!(),
@@ -332,7 +333,8 @@ fn draw_stratagem(f: &mut Frame, drill: &Drill, area: Rect, now: Instant) {
         .enumerate()
         .flat_map(|(i, d)| {
             let style = match (flash, i < drill.progress) {
-                (true, _) => Style::new().fg(BAD).bold(),
+                // Reversed so the flash reads without color, unlike the bold done arrows.
+                (true, _) => Style::new().fg(BAD).bold().reversed(),
                 (false, true) => Style::new().fg(ACCENT).bold(),
                 // Done arrows are bold + colored, pending ones dim: readable without color too.
                 (false, false) => Style::new().fg(DIM),
