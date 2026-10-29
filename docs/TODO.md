@@ -186,7 +186,7 @@ Graph math (ticks, smoothing, scaling) goes in a pure module (`src/graph.rs`) wi
       macOS (x86_64/aarch64) binaries; `cargo-dist` generates this, or a hand-written matrix job
   - Done with taiki-e create-gh-release + upload-rust-binary (Windows too); not run yet, first real test is the v0.1.0 tag.
 - [ ] Publish to crates.io (after v0.1, no account yet): package ready (`include` list, `MIT AND CC-BY-SA-4.0`, `cargo package` passes); needs `cargo login` + `cargo publish` by the maintainer
-- [ ] **(v0.1)** Repo goes public
+- [x] **(v0.1)** Repo goes public
 - [ ] Man page and shell completions (clap_mangen / clap_complete), generated at build, installed by the Nix package
 - [ ] Home-manager module: `programs.claptap.enable`, `settings` → `config.toml`, `package`
 - [ ] nixpkgs PR (`pkgs/by-name/cl/claptap`)
