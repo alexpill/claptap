@@ -73,7 +73,8 @@ pub enum Screen {
 pub enum Item {
     Mode(Mode),
     Length(u64),
-    Lang(String),
+    /// Shows the current word list; cycles to the next one.
+    Lang,
     /// Cycles through keyboard layouts; highlighted while the keyboard is shown.
     Keyboard,
 }
@@ -141,16 +142,11 @@ impl App {
 
     /// Config bar contents, in display order. Groups are told apart by variant.
     pub fn menu_items(&self) -> Vec<Item> {
-        let langs = if self.mode == Mode::Stratagem {
-            &[][..]
-        } else {
-            &self.langs[..]
-        };
         Mode::ALL
             .into_iter()
             .map(Item::Mode)
             .chain(self.mode.lengths().iter().map(|&n| Item::Length(n)))
-            .chain(langs.iter().map(|l| Item::Lang(l.clone())))
+            .chain((self.mode != Mode::Stratagem).then_some(Item::Lang))
             .chain((self.mode != Mode::Stratagem).then_some(Item::Keyboard))
             .collect()
     }
@@ -159,7 +155,7 @@ impl App {
         match item {
             Item::Mode(m) => *m == self.mode,
             Item::Length(n) => *n == self.length,
-            Item::Lang(l) => *l == self.lang,
+            Item::Lang => true,
             Item::Keyboard => self.hands,
         }
     }
@@ -175,13 +171,21 @@ impl App {
                 self.hands = true;
                 return;
             }
-            Item::Lang(l) => match words::load(&l) {
-                Ok(list) => (self.lang, self.list) = (l, list),
-                Err(e) => {
-                    self.error = Some(e);
-                    return;
+            Item::Lang => {
+                let next = self
+                    .langs
+                    .iter()
+                    .position(|l| *l == self.lang)
+                    .map_or(0, |i| (i + 1) % self.langs.len());
+                let l = self.langs[next].clone();
+                match words::load(&l) {
+                    Ok(list) => (self.lang, self.list) = (l, list),
+                    Err(e) => {
+                        self.error = Some(e);
+                        return;
+                    }
                 }
-            },
+            }
         }
         self.restart();
     }
@@ -366,6 +370,10 @@ mod tests {
         }
         press(&mut app, KeyCode::Enter);
         assert_eq!((app.layout, app.hands), (1, true));
+        // The item before it cycles the word list.
+        press(&mut app, KeyCode::Left);
+        press(&mut app, KeyCode::Enter);
+        assert_eq!(app.lang, "english_1k");
         // ? opens the help, any key closes it without acting.
         press(&mut app, KeyCode::Char('?'));
         assert!(app.help);
@@ -406,7 +414,7 @@ mod tests {
         assert!(
             !app.menu_items()
                 .iter()
-                .any(|i| matches!(i, Item::Lang(_) | Item::Keyboard))
+                .any(|i| matches!(i, Item::Lang | Item::Keyboard))
         );
         let Game::Stratagem(drill) = &app.game else {
             panic!()

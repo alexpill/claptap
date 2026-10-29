@@ -168,7 +168,7 @@ fn config_bar(app: &App) -> Line<'static> {
         let label = match item {
             Item::Mode(m) => m.name().to_string(),
             Item::Length(n) => n.to_string(),
-            Item::Lang(l) => l.clone(),
+            Item::Lang => app.lang.clone(),
             Item::Keyboard => format!("⌨ {}", keyboard::LAYOUTS[app.layout].name),
         };
         let mut style = match (app.is_selected(item), app.menu.is_some()) {

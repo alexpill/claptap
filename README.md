@@ -15,7 +15,7 @@ history of every run.
 claptap                    # 30 s test, English
 claptap --time 60          # 60 s test
 claptap --words 25         # type 25 words
-claptap --lang french      # built-in: english, french
+claptap --lang french_1k   # built-in: english, french (200 words), _1k and _10k variants
 claptap --stratagem        # stratagem drill: enter arrow codes against the clock
 claptap --hands --layout azerty   # show the keyboard + hands guide: qwerty (default), azerty, qwertz, colemak, dvorak
 ```
@@ -25,7 +25,8 @@ claptap --hands --layout azerty   # show the keyboard + hands guide: qwerty (def
 Opt-in: `H` in normal mode or `--hands`. Below the words, an ISO keyboard in your layout lights up the next key and its finger's zone,
 and names the finger to use (plus shift with the other hand for capitals, backspace when the
 current word has a mistake), next to two drawn hands with the finger(s) to use filled in.
-The `⌨` item in the option bar cycles the layout and lights up while the keyboard is shown.
+The `⌨` item in the option bar cycles the layout and lights up while the keyboard is shown;
+the language item next to it cycles the word lists the same way.
 
 ### Stratagem mode
 
@@ -39,7 +40,7 @@ option bar has focus): `←→`/`hl` move, `enter` picks, `H` shows/hides the ke
 opens the help, `esc` goes back to typing (`INSERT`) and `q` quits.
 
 Custom word lists: put whitespace-separated words in `~/.config/claptap/words/<name>.txt`
-and run `claptap --lang <name>`. A file named `english.txt` or `french.txt` replaces the built-in list.
+and run `claptap --lang <name>`. A file named `english.txt` or `french.txt` replaces the built-in list. Built-in lists come from [wordfreq](words/README.md) (CC-BY-SA 4.0).
 
 Every finished test is appended to `~/.local/share/claptap/history.jsonl`.
 

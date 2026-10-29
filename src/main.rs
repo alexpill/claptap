@@ -18,7 +18,7 @@ use app::{App, Mode};
 #[derive(Parser)]
 #[command(version)]
 struct Args {
-    /// Word list: built-in (english, french) or <config>/words/<name>.txt
+    /// Word list: built-in (english, french, with _1k and _10k variants) or <config>/words/<name>.txt
     #[arg(short, long, default_value = "english")]
     lang: String,
     /// Time mode: test length in seconds (also the stratagem round length)
