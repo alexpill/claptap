@@ -34,7 +34,7 @@ with the arrow keys or `hjkl`. A wrong input resets the code. Finish as many as 
 the timer runs out; you get stratagems per minute, accuracy, average time and best streak (codes
 entered without a mistake in a row), plus a graph of the time each one took.
 
-Keys: `tab` restarts, `ctrl+c` quits, `esc` enters normal mode (orange `NORMAL` badge, the
+Keys: `tab` restarts, `ctrl+backspace` (or `ctrl+w`, `alt+backspace`) deletes the word, `ctrl+c` quits, `esc` enters normal mode (orange `NORMAL` badge, the
 option bar has focus): `←→`/`hl` move, `enter` picks, `H` shows/hides the keyboard and hands, `?`
 opens the help, `esc` goes back to typing (`INSERT`) and `q` quits.
 

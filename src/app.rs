@@ -228,6 +228,14 @@ impl App {
                 self.menu = Some(0);
             }
             KeyCode::Tab => self.restart(),
+            // Ctrl+Backspace reaches us as Ctrl+H or Ctrl+Backspace depending on the terminal; Alt+Backspace and Ctrl+W like a shell.
+            KeyCode::Backspace | KeyCode::Char('h' | 'w')
+                if ctrl || key.modifiers.contains(KeyModifiers::ALT) && key.code == KeyCode::Backspace =>
+            {
+                if let (Screen::Playing, Game::Typing(test)) = (&self.screen, &mut self.game) {
+                    test.delete_word();
+                }
+            }
             _ if !matches!(self.screen, Screen::Playing) || ctrl => {}
             code => match &mut self.game {
                 Game::Typing(test) => match code {
@@ -377,6 +385,19 @@ mod tests {
         press(&mut app, KeyCode::Esc);
         assert!(!app.game.started());
         assert!(press(&mut app, KeyCode::Char('q')));
+    }
+
+    #[test]
+    fn ctrl_backspace_deletes_word() {
+        let mut app = App::new("english".into(), Mode::Words, 10, 0, false).unwrap();
+        press(&mut app, KeyCode::Char('a'));
+        press(&mut app, KeyCode::Char('b'));
+        app.on_key(
+            KeyEvent::new(KeyCode::Char('h'), KeyModifiers::CONTROL),
+            Instant::now(),
+        );
+        let Game::Typing(test) = &app.game else { panic!() };
+        assert_eq!(test.typed, vec![""]);
     }
 
     #[test]

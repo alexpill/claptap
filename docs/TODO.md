@@ -36,7 +36,7 @@ The short list, in suggested order. Each item lives in its phase below with the 
 - [x] Results graph: cumulative wpm, raw per second, error markers (braille `Chart`)
 - [x] Append each result to `~/.local/share/claptap/history.jsonl`
 - [x] Unit tests for stats and input handling
-- [ ] **(v0.1)** Ctrl+Backspace deletes the current word
+- [x] **(v0.1)** Ctrl+Backspace deletes the current word
   - In `typing.rs`: clear the current input word; if it is empty, go back into the previous word
     only when that word has a mistake (same rule as plain backspace). Unit test both cases.
   - Terminals send it as `Ctrl+Backspace`, `Ctrl+H` or `Alt+Backspace`: accept all three in `app.rs`.

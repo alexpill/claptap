@@ -142,6 +142,19 @@ impl Test {
         }
     }
 
+    /// Clears the current word; on an empty word, goes back into the previous one if it has mistakes and clears it.
+    pub fn delete_word(&mut self) {
+        if self.finished() {
+            return;
+        }
+        if self.typed.last().is_some_and(String::is_empty) {
+            self.backspace();
+        }
+        if let Some(word) = self.typed.last_mut() {
+            word.clear();
+        }
+    }
+
     /// Characters typed correctly: matching positions in words, plus a space per finished correct word.
     fn char_counts(&self) -> (usize, usize) {
         let (mut ok, mut bad) = (0, 0);
@@ -275,6 +288,21 @@ mod tests {
         let mut t = test(&["ab", "cd"], Limit::Words(2));
         type_str(&mut t, "ab ", Instant::now(), 10);
         t.backspace();
+        assert_eq!(t.typed, vec!["ab", ""]);
+    }
+
+    #[test]
+    fn delete_word() {
+        let mut t = test(&["ab", "cd", "ef"], Limit::Words(3));
+        type_str(&mut t, "ab cx", Instant::now(), 10);
+        t.delete_word();
+        assert_eq!(t.typed, vec!["ab", ""]);
+        // The previous word is correct: stay on the empty word.
+        t.delete_word();
+        assert_eq!(t.typed, vec!["ab", ""]);
+        type_str(&mut t, "cx ", Instant::now(), 10);
+        // Empty word after a wrong one: go back and clear it.
+        t.delete_word();
         assert_eq!(t.typed, vec!["ab", ""]);
     }
 
