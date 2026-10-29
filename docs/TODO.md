@@ -181,7 +181,7 @@ Graph math (ticks, smoothing, scaling) goes in a pure module (`src/graph.rs`) wi
       a layout, a snippet; issue templates for bugs and language/layout requests
 - [x] **(v0.1)** README: GIF recorded with a committed `vhs` tape (`docs/demo.tape`), feature list,
       comparison line vs other typing TUIs
-  - Done: GIF + `CLAPTAP_SEED` for reproducible words. Still to do: feature list and comparison line.
+  - GIF (with `CLAPTAP_SEED` for reproducible words), feature list, comparison line, binary install.
 - [x] **(v0.1)** Release workflow: tag `v*` → GitHub release with Linux (musl x86_64/aarch64) and
       macOS (x86_64/aarch64) binaries; `cargo-dist` generates this, or a hand-written matrix job
   - Done with taiki-e create-gh-release + upload-rust-binary (Windows too); not run yet, first real test is the v0.1.0 tag.
