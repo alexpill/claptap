@@ -15,7 +15,7 @@ configurable keybindings and word lists, and a first-class Nix package.
 ## Status
 
 Phases 0 and 1 are done, plus parts of 2 (in-app config bar) and 4 (stratagem drill).
-Pick the next unchecked item in phase order.
+Pick the next unchecked **(v0.1)** item from the milestone list in `docs/TODO.md`, then phase order.
 
 ## Stack
 

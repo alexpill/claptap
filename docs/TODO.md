@@ -1,7 +1,22 @@
 # Roadmap
 
 Work through phases in order. Tick items (`- [x]`) in the change that implements them.
-Add items when you find work that is missing here.
+Add items when you find work that is missing here. Items tagged **(v0.1)** are required before
+the repo goes public; everything else can ship after.
+
+## Milestone — public v0.1
+
+The short list, in suggested order. Each item lives in its phase below with the details.
+
+1. Bigger word lists with a clean license (phase 1)
+2. Ctrl+Backspace (phase 1)
+3. Tolerant history reading (phase 3)
+4. Small terminal fallback and resize (phase 8)
+5. ANSI board (phase 2b)
+6. Error display not relying on color alone (phase 6)
+7. CHANGELOG, CONTRIBUTING, issue templates (phase 7)
+8. README GIF (phase 7)
+9. Release binaries and crates.io (phase 7), then the repo goes public
 
 ## Phase 0 — Project setup
 
@@ -21,17 +36,39 @@ Add items when you find work that is missing here.
 - [x] Results graph: cumulative wpm, raw per second, error markers (braille `Chart`)
 - [x] Append each result to `~/.local/share/claptap/history.jsonl`
 - [x] Unit tests for stats and input handling
-- [ ] Ctrl+Backspace deletes the current word
-- [ ] Bigger default word lists (English 1k, French 1k) as extra built-ins (`english_1k`)
+- [ ] **(v0.1)** Ctrl+Backspace deletes the current word
+  - In `typing.rs`: clear the current input word; if it is empty, go back into the previous word
+    only when that word has a mistake (same rule as plain backspace). Unit test both cases.
+  - Terminals send it as `Ctrl+Backspace`, `Ctrl+H` or `Alt+Backspace`: accept all three in `app.rs`.
+- [ ] **(v0.1)** Word list provenance: write `words/README.md` with the source and license of each list
+  - Current lists (~200 words) must be checked: anything copied from Monkeytype is GPL-3 and
+    can't ship under MIT. Replace it rather than relicense.
+  - Good sources: frequency lists under permissive or public-domain terms (e.g. hermitdave
+    FrequencyWords is CC-BY-SA, so only if attribution + share-alike is fine for data files;
+    Wiktionary frequency lists, CC-BY-SA; or generate our own from public-domain texts).
+    Document the choice in `words/README.md`.
+- [ ] **(v0.1)** Bigger built-in lists: `english_1k`, `french_1k`, then `english_10k`, `french_10k`
+  - Same format as today (one word per line, embedded with `include_str!`), listed in the config bar.
+  - A small script in `scripts/` (not shipped) that builds a list from a frequency file: lowercase,
+    drop words with digits/punctuation, dedupe, keep top N. Commit the output, not the input.
+  - Unit test: every built-in list loads, is non-empty, has no duplicates and no whitespace in words.
+- [ ] More languages: german, spanish, italian, portuguese (1k each), same pipeline as above
 - [ ] Don't count a test that was abandoned with Tab/Esc before finishing (today nothing is saved — keep it that way, add a test)
 
 ## Phase 2 — Modes and options
 
 - [x] Config bar inside the app (`esc` focuses it, `←→`/`hl` + `enter`): mode, time 15/30/60/120, words 10/25/50/100, language (built-in + user lists)
 - [ ] Punctuation and numbers toggles (as extra config bar groups)
+  - In `words.rs`, a pure post-processing pass on picked words: capitalize after `.`, add
+    `, . ! ? ; :` and quotes/brackets at word ends with fixed probabilities, replace ~10% of
+    words with numbers. Seeded `rand` in tests so output is deterministic.
+  - French typography (space before `; : ! ?`) as a per-language rule, not a global one.
 - [ ] Quote mode (built-in quotes file per language, quote length filter)
+  - `quotes/<lang>.txt`, one quote per paragraph, **public-domain sources only** (old books,
+    speeches), with the source on each entry. Length filter: short / medium / long / all.
 - [ ] Zen mode (free typing, no target, ends on Esc)
 - [ ] Remember last used mode/lang between runs (state file in data dir)
+  - `state.json` next to `history.jsonl`, written on quit; CLI flags still override it.
 
 ## Phase 2b — On-screen keyboard
 
@@ -43,19 +80,44 @@ Add items when you find work that is missing here.
 - [x] Keyboard + hands guide is opt-in: `H` in normal mode or `--hands`; `⌨` item cycles layout and shows state
 - [x] `?` help popup in normal mode
 - [x] Vim-style mode badge (`INSERT` cyan / `NORMAL` orange), orange top border and bar cursor in normal mode
+- [ ] **(v0.1)** ANSI board: no ISO key next to left shift, wide enter, `\` on the top row
+  - `Board { Iso, Ansi }` in `keyboard.rs`, picked per layout (qwerty/colemak/dvorak default ANSI,
+    azerty/qwertz default ISO), overridable with `--board`. Finger map test for both.
+- [ ] More layouts: bépo, workman, colemak-dh, qwerty-fr (one `Layout` entry each + finger map test)
+- [ ] User layouts in config (phase 5): rows as strings, validated against the board shape
+- [ ] Dead keys (ê, ü...): check real input on an AZERTY/bépo keyboard, show "^ then e" as the hint
+- [ ] Shifted symbols and AZERTY digits once punctuation/numbers exist
 - [ ] More normal-mode shortcuts (proposed): `L` next layout, `t`/`w`/`s` jump to mode, `r` restart
 - [ ] Alternative keyboard styles (mockups discussed): finger columns (split, one column per finger),
       btop keycaps (box per key, ~11 lines), compact (3 letter rows, no border) — `keyboard_style` in config
 - [ ] Respect terminal themes: finger colors come from the theme (phase 6), 16-color fallback
-- [ ] Shifted symbols, AZERTY digits, dead keys (ê, ü...) once punctuation/numbers exist
-- [ ] ANSI board (no ISO key next to left shift, wide enter) and more layouts (bépo, workman...)
-- [ ] User layouts in config
 - [ ] Per-finger stats: errors and speed by finger/key, heatmap on the keyboard in results
 - [ ] Show the keyboard in stratagem mode with arrows/hjkl highlighted
 
+## Phase 2c — Code mode
+
+Type real code: symbols, indentation and newlines. A strong selling point for a terminal audience.
+
+- [ ] Step 1: `code` word lists (keywords and identifiers per language: `code_rust`, `code_python`...)
+  - Just word lists through the existing pipeline: it works today with no new logic.
+- [ ] Step 2: snippet mode (`--code <lang>`, `code` item in the config bar)
+  - `snippets/<lang>/*.txt` embedded at build time; **snippets written by us or from MIT/public-domain
+    code**, with the source noted. Short (5–20 lines), idiomatic, no comments.
+  - Target becomes lines instead of words: extend `typing.rs` with a multi-line target where
+    `Enter` types `\n` and leading indentation is skipped automatically (auto-indent, like an editor).
+    Option to type indentation for the purists.
+  - Tabs normalized to spaces in the snippet; trailing whitespace stripped.
+  - Rendering keeps line breaks and indentation, scrolls by line; optional syntax tint with
+    a few hand-written token rules (keywords, strings, comments) — no syntax-highlighting crate.
+  - Stats: same WPM formula (chars / 5), plus symbol accuracy shown separately.
+  - Saved to history with `mode = "code"` and `lang = "<language>"`.
+  - Unit tests: newline handling, auto-indent skip, backspace across a line break.
+- [ ] Step 3: user snippets in `~/.config/claptap/snippets/<lang>/`, and `--code-file <path>` to type
+      a random chunk of any local file
+
 ## Phase 3 — History and stats dashboard
 
-- [ ] `history::read_all()` tolerant of bad lines (skip + count them)
+- [ ] **(v0.1)** `history::read_all()` tolerant of bad lines (skip + count them, warn once, never crash)
 - [ ] `claptap stats` subcommand and a stats screen reachable from the app
 - [ ] btop-style dashboard: WPM over sessions graph (with moving average), accuracy graph
 - [ ] Breakdown table by language × mode: runs, best, average, last 10 average
@@ -63,6 +125,25 @@ Add items when you find work that is missing here.
 - [ ] Filters: language, mode, period (today / 7d / 30d / all)
 - [ ] Activity heatmap (runs per day), like a GitHub contribution graph
 - [ ] Store per-second samples in the record (optional field) to replay graphs of past runs
+
+## Phase 3b — Better graphs
+
+Inspiration: btop (gradient braille, filled area), bottom/btm (clean axes, legends), plotext and
+asciigraph (nice ticks, labelled axes), ttyplot (live plot), gnuplot `dumb` (readable labels).
+Graph math (ticks, smoothing, scaling) goes in a pure module (`src/graph.rs`) with unit tests;
+`ui.rs` only draws. Stay on ratatui `Chart`/`Canvas` before considering a crate.
+
+- [ ] Nice axis ticks: round bounds and steps (0/20/40/60 rather than 0/23.5/47), labels on both axes
+- [ ] Value-based color gradient on the wpm line (low → high), like btop's cpu graph
+- [ ] Filled area under the main series (braille fill or half-blocks `▄`), line on top
+- [ ] Error markers as a separate thin strip under the graph (`▁▃▅` by error count per second)
+      instead of dots mixed with the lines
+- [ ] Smoothing toggle (moving average over 3 s) for the raw series
+- [ ] Legend in the panel border title, colored by series (`─ wpm ─ raw ✕ errors`)
+- [ ] Inspect cursor on the results screen: `←→`/`hl` moves a vertical line, a tooltip shows
+      second, wpm, raw and errors at that point
+- [ ] Half-block / block render mode for terminals or fonts where braille looks bad (config option)
+- [ ] Same graph component reused by the stats dashboard (phase 3) and stratagem results
 
 ## Phase 4 — Stratagem mode (Helldivers-style)
 
@@ -78,6 +159,7 @@ Add items when you find work that is missing here.
 - [ ] Other round types: fixed count ("10 stratagems, fastest time"), sudden death (first mistake ends it)
 - [ ] User-defined stratagems in config
 - [ ] Optional sound/bell on success and failure
+- [ ] Keep it "inspired by": our own names and codes, no Helldivers logo, names or assets anywhere
 
 ## Phase 5 — Configuration
 
@@ -92,20 +174,28 @@ Add items when you find work that is missing here.
 - [ ] Theme struct replacing the constants in `ui.rs`
 - [ ] A few built-in themes (default terminal colors, a dark, a light, a btop-like)
 - [ ] User themes in config; 16-color fallback for basic terminals
-- [ ] Never rely on color alone for errors (underline/bold too)
+  - Detect with `COLORTERM` (truecolor/24bit) and `NO_COLOR` (respect it: no colors at all).
+- [ ] **(v0.1)** Never rely on color alone for errors (underline wrong chars, bold/strike missed ones)
 
 ## Phase 7 — Packaging and release
 
+- [ ] **(v0.1)** `CHANGELOG.md` (Keep a Changelog format), semver starting at 0.1.0
+- [ ] **(v0.1)** `CONTRIBUTING.md`: dev commands, how to add a word list (with its source/license),
+      a layout, a snippet; issue templates for bugs and language/layout requests
+- [ ] **(v0.1)** README: GIF recorded with a committed `vhs` tape (`docs/demo.tape`), feature list,
+      comparison line vs other typing TUIs
+- [ ] **(v0.1)** Release workflow: tag `v*` → GitHub release with Linux (musl x86_64/aarch64) and
+      macOS (x86_64/aarch64) binaries; `cargo-dist` generates this, or a hand-written matrix job
+- [ ] **(v0.1)** Publish to crates.io (check `cargo package --list` ships `words/`, not dev files)
+- [ ] **(v0.1)** Repo goes public
+- [ ] Man page and shell completions (clap_mangen / clap_complete), generated at build, installed by the Nix package
 - [ ] Home-manager module: `programs.claptap.enable`, `settings` → `config.toml`, `package`
-- [ ] Release workflow: tag → GitHub release with static Linux/macOS binaries
-- [ ] Publish to crates.io
 - [ ] nixpkgs PR (`pkgs/by-name/cl/claptap`)
-- [ ] Repo goes public; screenshots/GIF in README (vhs tape)
+- [ ] Other packaging once there are users: AUR, Homebrew tap
 
 ## Phase 8 — Polish
 
-- [ ] Small terminal fallback (message when too small), resize during a test
+- [ ] **(v0.1)** Small terminal fallback (message with the minimum size when too small), resize during a test
 - [ ] Very long words wider than the panel get wrapped instead of overflowing
 - [ ] Wide/unicode characters (CJK, emoji) width handling in word wrapping
 - [ ] Startup time and idle CPU (only redraw on change / once per second)
-- [ ] Man page and shell completions (clap_mangen / clap_complete) in the Nix package
