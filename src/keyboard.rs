@@ -1,41 +1,59 @@
 use crate::typing::Next;
 
-/// A keyboard layout on an ISO board: the unshifted character of each key, row by row
-/// (number row, top, home, bottom). Fingers depend on the physical position only, so they are shared.
+/// A keyboard layout: the unshifted character of each key, row by row (number row, top, home,
+/// bottom). Fingers depend on the physical position only, so they are shared per board.
 pub struct Layout {
     pub name: &'static str,
+    /// ISO boards have an extra key left of Z and one left of Enter; ANSI has `\` above Enter.
+    pub iso: bool,
     pub rows: [&'static str; 4],
 }
 
 pub const LAYOUTS: &[Layout] = &[
     Layout {
         name: "qwerty",
-        rows: ["`1234567890-=", "qwertyuiop[]", "asdfghjkl;'#", "\\zxcvbnm,./"],
+        iso: false,
+        rows: ["`1234567890-=", "qwertyuiop[]\\", "asdfghjkl;'", "zxcvbnm,./"],
     },
     Layout {
         name: "azerty",
+        iso: true,
         rows: ["²&é\"'(-è_çà)=", "azertyuiop^$", "qsdfghjklmù*", "<wxcvbn,;:!"],
     },
     Layout {
         name: "qwertz",
+        iso: true,
         rows: ["^1234567890ß´", "qwertzuiopü+", "asdfghjklöä#", "<yxcvbnm,.-"],
     },
     Layout {
         name: "colemak",
-        rows: ["`1234567890-=", "qwfpgjluy;[]", "arstdhneio'#", "\\zxcvbkm,./"],
+        iso: false,
+        rows: ["`1234567890-=", "qwfpgjluy;[]\\", "arstdhneio'", "zxcvbkm,./"],
     },
     Layout {
         name: "dvorak",
-        rows: ["`1234567890[]", "',.pyfgcrl/=", "aoeuidhtns-#", "\\;qjkxbmwvz"],
+        iso: false,
+        rows: ["`1234567890[]", "',.pyfgcrl/=\\", "aoeuidhtns-", ";qjkxbmwvz"],
+    },
+    Layout {
+        name: "qwerty-uk",
+        iso: true,
+        rows: ["`1234567890-=", "qwertyuiop[]", "asdfghjkl;'#", "\\zxcvbnm,./"],
     },
 ];
 
 /// Finger per key, same shape as `Layout::rows`. 0-3 left pinky..index, 4-7 right index..pinky.
-const FINGERS: [&[u8]; 4] = [
+const FINGERS_ISO: [&[u8]; 4] = [
     &[0, 0, 1, 2, 3, 3, 4, 4, 5, 6, 7, 7, 7],
     &[0, 1, 2, 3, 3, 4, 4, 5, 6, 7, 7, 7],
     &[0, 1, 2, 3, 3, 4, 4, 5, 6, 7, 7, 7],
     &[0, 0, 1, 2, 3, 3, 4, 4, 5, 6, 7],
+];
+const FINGERS_ANSI: [&[u8]; 4] = [
+    &[0, 0, 1, 2, 3, 3, 4, 4, 5, 6, 7, 7, 7],
+    &[0, 1, 2, 3, 3, 4, 4, 5, 6, 7, 7, 7, 7],
+    &[0, 1, 2, 3, 3, 4, 4, 5, 6, 7, 7],
+    &[0, 1, 2, 3, 3, 4, 4, 5, 6, 7],
 ];
 pub const THUMB: u8 = 8;
 const LEFT_PINKY: u8 = 0;
@@ -53,10 +71,6 @@ pub const FINGER_NAMES: [&str; 9] = [
     "thumb",
 ];
 
-pub fn finger(row: usize, col: usize) -> u8 {
-    FINGERS[row][col]
-}
-
 #[derive(Debug, PartialEq)]
 pub struct Key {
     pub row: usize,
@@ -70,6 +84,14 @@ impl Layout {
         LAYOUTS.iter().position(|l| l.name == name)
     }
 
+    fn fingers(&self) -> &[&'static [u8]; 4] {
+        if self.iso { &FINGERS_ISO } else { &FINGERS_ANSI }
+    }
+
+    pub fn finger(&self, row: usize, col: usize) -> u8 {
+        self.fingers()[row][col]
+    }
+
     /// Where `c` is typed. Uppercase letters are their lowercase key plus shift.
     // shortcut: only unshifted keys and shifted letters; add shifted symbols (and AZERTY digits,
     // dead keys for ê/ü...) when punctuation and numbers modes land.
@@ -80,7 +102,7 @@ impl Layout {
             Some(Key {
                 row,
                 col,
-                finger: finger(row, col),
+                finger: self.finger(row, col),
                 shift: lower != c,
             })
         })
@@ -153,7 +175,12 @@ mod tests {
     fn rows_match_finger_map() {
         for l in LAYOUTS {
             for (row, keys) in l.rows.iter().enumerate() {
-                assert_eq!(keys.chars().count(), FINGERS[row].len(), "{} row {row}", l.name);
+                assert_eq!(
+                    keys.chars().count(),
+                    l.fingers()[row].len(),
+                    "{} row {row}",
+                    l.name
+                );
             }
         }
     }
@@ -182,6 +209,17 @@ mod tests {
             }
         );
         assert_eq!(azerty.find('é').unwrap().finger, 1);
+    }
+
+    #[test]
+    fn ansi_and_iso_agree_on_letters() {
+        let (ansi, iso) = (&LAYOUTS[0], &LAYOUTS[Layout::by_name("qwerty-uk").unwrap()]);
+        // `\` differs on purpose: right pinky above Enter on ANSI, left of Z on ISO.
+        for c in ('a'..='z').chain(";',./".chars()) {
+            assert_eq!(ansi.find(c).unwrap().finger, iso.find(c).unwrap().finger, "{c}");
+        }
+        assert_eq!(ansi.find('z').unwrap().col, 0);
+        assert_eq!(iso.find('z').unwrap().col, 1);
     }
 
     #[test]

@@ -367,7 +367,9 @@ fn draw_stratagem(f: &mut Frame, drill: &Drill, area: Rect, now: Instant) {
 
 const KEYBOARD_HEIGHT: u16 = 9;
 /// Left offset of each key row, in columns: ISO stagger with 4-column keys (tab 1.5, caps 1.75, shift 1.25).
+/// ISO; on ANSI the bottom row starts one key further right (wide left shift).
 const ROW_OFFSETS: [usize; 4] = [0, 6, 7, 5];
+const ANSI_BOTTOM_OFFSET: usize = 9;
 const ROW_PREFIX: [&str; 4] = ["", " ⇥", " ⇪", " ⇧"];
 const ROW_SUFFIX: [&str; 4] = [" ⌫", "", "", "  ⇧"];
 /// Columns where the space bar starts (under C on QWERTY) and its width.
@@ -410,12 +412,20 @@ fn draw_keyboard(f: &mut Frame, layout: &KeyLayout, next: Option<Next>, area: Re
             DIM.into()
         };
         let mut spans = vec![Span::styled(
-            format!("{:<w$}", ROW_PREFIX[row], w = ROW_OFFSETS[row]),
+            format!(
+                "{:<w$}",
+                ROW_PREFIX[row],
+                w = if row == 3 && !layout.iso {
+                    ANSI_BOTTOM_OFFSET
+                } else {
+                    ROW_OFFSETS[row]
+                }
+            ),
             prefix_style,
         )];
         for (col, k) in keys.chars().enumerate() {
             let is_target = target.is_some_and(|t| (t.row, t.col) == (row, col));
-            let mut style = key_style(keyboard::finger(row, col), active, is_target);
+            let mut style = key_style(layout.finger(row, col), active, is_target);
             // The bumps on F and J (home row index keys).
             if row == 2 && (col == 3 || col == 6) {
                 style = style.underlined();

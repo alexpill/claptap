@@ -75,9 +75,10 @@ The short list, in suggested order. Each item lives in its phase below with the 
 - [x] Keyboard + hands guide is opt-in: `H` in normal mode or `--hands`; `⌨` item cycles layout and shows state
 - [x] `?` help popup in normal mode
 - [x] Vim-style mode badge (`INSERT` cyan / `NORMAL` orange), orange top border and bar cursor in normal mode
-- [ ] **(v0.1)** ANSI board: no ISO key next to left shift, wide enter, `\` on the top row
-  - `Board { Iso, Ansi }` in `keyboard.rs`, picked per layout (qwerty/colemak/dvorak default ANSI,
-    azerty/qwertz default ISO), overridable with `--board`. Finger map test for both.
+- [x] **(v0.1)** ANSI board: no ISO key next to left shift, wide left shift, `\` on the top row
+  - `Layout::iso` per layout: qwerty (US), colemak, dvorak are ANSI; azerty, qwertz, new `qwerty-uk` are ISO.
+    Finger map per board, unit-tested.
+- [ ] `--board iso|ansi` override (needs a rule for where the extra ISO keys go, e.g. a US-international ISO variant)
 - [ ] More layouts: bépo, workman, colemak-dh, qwerty-fr (one `Layout` entry each + finger map test)
 - [ ] User layouts in config (phase 5): rows as strings, validated against the board shape
 - [ ] Dead keys (ê, ü...): check real input on an AZERTY/bépo keyboard, show "^ then e" as the hint

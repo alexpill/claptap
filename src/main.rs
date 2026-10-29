@@ -30,7 +30,7 @@ struct Args {
     /// Stratagem mode: enter arrow codes (arrows or hjkl) against the clock
     #[arg(short, long, conflicts_with = "words")]
     stratagem: bool,
-    /// Keyboard layout for the on-screen guide: qwerty, azerty, qwertz, colemak, dvorak
+    /// Keyboard layout for the on-screen guide: qwerty (US, ANSI), azerty, qwertz, colemak, dvorak, qwerty-uk (ISO)
     #[arg(short = 'k', long, default_value = "qwerty")]
     layout: String,
     /// Show the on-screen keyboard and hands (toggle with H in normal mode)

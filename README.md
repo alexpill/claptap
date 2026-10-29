@@ -17,12 +17,12 @@ claptap --time 60          # 60 s test
 claptap --words 25         # type 25 words
 claptap --lang french_1k   # built-in: english, french (200 words), _1k and _10k variants
 claptap --stratagem        # stratagem drill: enter arrow codes against the clock
-claptap --hands --layout azerty   # show the keyboard + hands guide: qwerty (default), azerty, qwertz, colemak, dvorak
+claptap --hands --layout azerty   # show the keyboard + hands guide: qwerty (US, default), azerty, qwertz, colemak, dvorak, qwerty-uk
 ```
 
 ### On-screen keyboard
 
-Opt-in: `H` in normal mode or `--hands`. Below the words, an ISO keyboard in your layout lights up the next key and its finger's zone,
+Opt-in: `H` in normal mode or `--hands`. Below the words, a keyboard in your layout (ANSI for qwerty/colemak/dvorak, ISO for azerty/qwertz/qwerty-uk) lights up the next key and its finger's zone,
 and names the finger to use (plus shift with the other hand for capitals, backspace when the
 current word has a mistake), next to two drawn hands with the finger(s) to use filled in.
 The `⌨` item in the option bar cycles the layout and lights up while the keyboard is shown;
