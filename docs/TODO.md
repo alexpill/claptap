@@ -16,7 +16,7 @@ The short list, in suggested order. Each item lives in its phase below with the 
 6. Error display not relying on color alone (phase 6)
 7. CHANGELOG, CONTRIBUTING, issue templates (phase 7)
 8. README GIF (phase 7)
-9. Release binaries and crates.io (phase 7), then the repo goes public
+9. Release binaries (phase 7), then the repo goes public; crates.io comes later
 
 ## Phase 0 — Project setup
 
@@ -185,7 +185,7 @@ Graph math (ticks, smoothing, scaling) goes in a pure module (`src/graph.rs`) wi
 - [x] **(v0.1)** Release workflow: tag `v*` → GitHub release with Linux (musl x86_64/aarch64) and
       macOS (x86_64/aarch64) binaries; `cargo-dist` generates this, or a hand-written matrix job
   - Done with taiki-e create-gh-release + upload-rust-binary (Windows too); not run yet, first real test is the v0.1.0 tag.
-- [ ] **(v0.1)** Publish to crates.io: package ready (`include` list, `MIT AND CC-BY-SA-4.0`, `cargo package` passes); needs `cargo login` + `cargo publish` by the maintainer
+- [ ] Publish to crates.io (after v0.1, no account yet): package ready (`include` list, `MIT AND CC-BY-SA-4.0`, `cargo package` passes); needs `cargo login` + `cargo publish` by the maintainer
 - [ ] **(v0.1)** Repo goes public
 - [ ] Man page and shell completions (clap_mangen / clap_complete), generated at build, installed by the Nix package
 - [ ] Home-manager module: `programs.claptap.enable`, `settings` → `config.toml`, `package`
