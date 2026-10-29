@@ -191,7 +191,8 @@ Graph math (ticks, smoothing, scaling) goes in a pure module (`src/graph.rs`) wi
 
 ## Phase 8 — Polish
 
-- [ ] **(v0.1)** Small terminal fallback (message with the minimum size when too small), resize during a test
+- [x] **(v0.1)** Small terminal fallback (message with the minimum size when too small), resize during a test
+- [ ] Pause a time-mode test while the terminal is too small (today the timer keeps running and keys are still typed)
 - [ ] Very long words wider than the panel get wrapped instead of overflowing
 - [ ] Wide/unicode characters (CJK, emoji) width handling in word wrapping
 - [ ] Startup time and idle CPU (only redraw on change / once per second)

@@ -19,6 +19,9 @@ const BAD: Color = Color::Red;
 const NORMAL: Color = Color::Indexed(208);
 /// Lines of words shown at once while typing.
 const VISIBLE_LINES: usize = 3;
+/// Smallest terminal that fits the results summary and graph; the config bar can ask for more.
+const MIN_WIDTH: u16 = 70;
+const MIN_HEIGHT: u16 = 16;
 
 fn panel(title: &str) -> Block<'_> {
     Block::bordered()
@@ -28,6 +31,27 @@ fn panel(title: &str) -> Block<'_> {
 }
 
 pub fn draw(f: &mut Frame, app: &App, now: Instant) {
+    let bar_line = config_bar(app);
+    let min_width = MIN_WIDTH.max(bar_line.width() as u16);
+    let area = f.area();
+    if area.width < min_width || area.height < MIN_HEIGHT {
+        let text = vec![
+            Line::from("terminal too small".fg(BAD).bold()),
+            Line::from(format!(
+                "{}×{}, needs {min_width}×{MIN_HEIGHT}",
+                area.width, area.height
+            )),
+            Line::from("ctrl+c quits".fg(DIM)),
+        ];
+        let y = area.height.saturating_sub(text.len() as u16) / 2;
+        let rect = Rect {
+            y: area.y + y,
+            height: area.height - y,
+            ..area
+        };
+        f.render_widget(Paragraph::new(text).alignment(Alignment::Center), rect);
+        return;
+    }
     let [top, bar, body, help] = Layout::vertical([
         Constraint::Length(3),
         Constraint::Length(1),
@@ -45,7 +69,7 @@ pub fn draw(f: &mut Frame, app: &App, now: Instant) {
         top_block = top_block.border_style(Style::new().fg(NORMAL));
     }
     f.render_widget(Paragraph::new(top_line(app, now)).block(top_block), top);
-    f.render_widget(Paragraph::new(config_bar(app)).alignment(Alignment::Center), bar);
+    f.render_widget(Paragraph::new(bar_line).alignment(Alignment::Center), bar);
 
     match (&app.screen, &app.game) {
         (Screen::Playing, Game::Typing(test)) => match app.layout {
