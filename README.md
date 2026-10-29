@@ -6,6 +6,8 @@ Dense, boxed panels and braille graphs in the spirit of `btop`, built with
 [ratatui](https://ratatui.rs). Type, get your WPM, accuracy and a per-second graph, and keep a
 history of every run.
 
+![claptap demo: a words test with the keyboard guide, then the results graph](docs/demo.gif)
+
 > Early days: the typing test and the stratagem drill work. See [docs/TODO.md](docs/TODO.md) for the roadmap
 > (stats dashboard, Helldivers-style stratagem mode, config, themes, Nix module).
 
@@ -79,6 +81,10 @@ To enter it automatically with direnv, create your own `.envrc` (it is git-ignor
 echo "use flake" > .envrc && direnv allow
 ```
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and the [roadmap](docs/TODO.md). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
+
 ## License
 
-[MIT](LICENSE)
+Code: [MIT](LICENSE). Built-in word lists (`words/`): [CC-BY-SA 4.0](words/README.md), from wordfreq.

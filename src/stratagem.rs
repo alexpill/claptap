@@ -143,7 +143,7 @@ impl Drill {
 
     fn push_random(&mut self) {
         loop {
-            let i = rand::random_range(0..BUILTIN.len());
+            let i = crate::with_rng(|rng| rand::RngExt::random_range(rng, 0..BUILTIN.len()));
             if self.queue.last() != Some(&i) {
                 self.queue.push(i);
                 return;

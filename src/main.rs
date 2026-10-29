@@ -42,6 +42,20 @@ pub fn dirs() -> Option<ProjectDirs> {
     ProjectDirs::from("", "", "claptap")
 }
 
+thread_local! {
+    /// `CLAPTAP_SEED=<u64>` makes word and stratagem picks reproducible (demo recordings, bug reports).
+    static RNG: std::cell::RefCell<rand::rngs::StdRng> = std::cell::RefCell::new(
+        match std::env::var("CLAPTAP_SEED").ok().and_then(|s| s.parse().ok()) {
+            Some(seed) => rand::SeedableRng::seed_from_u64(seed),
+            None => rand::make_rng(),
+        },
+    );
+}
+
+pub fn with_rng<T>(f: impl FnOnce(&mut rand::rngs::StdRng) -> T) -> T {
+    RNG.with_borrow_mut(f)
+}
+
 fn main() {
     let args = Args::parse();
     let (mode, length) = match (args.words, args.stratagem) {

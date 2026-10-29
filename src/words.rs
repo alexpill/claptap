@@ -34,10 +34,9 @@ pub fn load(lang: &str) -> Result<Vec<String>, String> {
 }
 
 pub fn pick(list: &[String], n: usize) -> Vec<String> {
-    let mut rng = rand::rng();
     let mut out: Vec<String> = Vec::with_capacity(n);
     while out.len() < n {
-        let w = list.choose(&mut rng).unwrap();
+        let w = crate::with_rng(|rng| list.choose(rng).unwrap());
         // Avoid the same word twice in a row when the list allows it.
         if list.len() == 1 || out.last() != Some(w) {
             out.push(w.clone());

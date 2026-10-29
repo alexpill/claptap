@@ -176,14 +176,16 @@ Graph math (ticks, smoothing, scaling) goes in a pure module (`src/graph.rs`) wi
 
 ## Phase 7 — Packaging and release
 
-- [ ] **(v0.1)** `CHANGELOG.md` (Keep a Changelog format), semver starting at 0.1.0
-- [ ] **(v0.1)** `CONTRIBUTING.md`: dev commands, how to add a word list (with its source/license),
+- [x] **(v0.1)** `CHANGELOG.md` (Keep a Changelog format), semver starting at 0.1.0
+- [x] **(v0.1)** `CONTRIBUTING.md`: dev commands, how to add a word list (with its source/license),
       a layout, a snippet; issue templates for bugs and language/layout requests
-- [ ] **(v0.1)** README: GIF recorded with a committed `vhs` tape (`docs/demo.tape`), feature list,
+- [x] **(v0.1)** README: GIF recorded with a committed `vhs` tape (`docs/demo.tape`), feature list,
       comparison line vs other typing TUIs
-- [ ] **(v0.1)** Release workflow: tag `v*` → GitHub release with Linux (musl x86_64/aarch64) and
+  - Done: GIF + `CLAPTAP_SEED` for reproducible words. Still to do: feature list and comparison line.
+- [x] **(v0.1)** Release workflow: tag `v*` → GitHub release with Linux (musl x86_64/aarch64) and
       macOS (x86_64/aarch64) binaries; `cargo-dist` generates this, or a hand-written matrix job
-- [ ] **(v0.1)** Publish to crates.io (check `cargo package --list` ships `words/`, not dev files)
+  - Done with taiki-e create-gh-release + upload-rust-binary (Windows too); not run yet, first real test is the v0.1.0 tag.
+- [ ] **(v0.1)** Publish to crates.io: package ready (`include` list, `MIT AND CC-BY-SA-4.0`, `cargo package` passes); needs `cargo login` + `cargo publish` by the maintainer
 - [ ] **(v0.1)** Repo goes public
 - [ ] Man page and shell completions (clap_mangen / clap_complete), generated at build, installed by the Nix package
 - [ ] Home-manager module: `programs.claptap.enable`, `settings` → `config.toml`, `package`

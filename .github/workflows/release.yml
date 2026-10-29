@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+*']
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Release notes come from the matching CHANGELOG.md section.
+      - uses: taiki-e/create-gh-release-action@v1
+        with:
+          changelog: CHANGELOG.md
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  binaries:
+    needs: create-release
+    strategy:
+      matrix:
+        include:
+          - { target: x86_64-unknown-linux-musl, os: ubuntu-latest }
+          - { target: aarch64-unknown-linux-musl, os: ubuntu-latest }
+          - { target: x86_64-apple-darwin, os: macos-latest }
+          - { target: aarch64-apple-darwin, os: macos-latest }
+          - { target: x86_64-pc-windows-msvc, os: windows-latest }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      # Static musl binaries on Linux; cross-compiles where needed.
+      - uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: claptap
+          target: ${{ matrix.target }}
+          include: LICENSE,README.md,CHANGELOG.md,words/README.md
+          archive: $bin-$tag-$target
+          checksum: sha256
+          token: ${{ secrets.GITHUB_TOKEN }}

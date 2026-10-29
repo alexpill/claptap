@@ -4,10 +4,11 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.88"
 description = "A typing test for the terminal, with stats and graphs"
-license = "MIT"
+license = "MIT AND CC-BY-SA-4.0"
 repository = "https://github.com/alexpill/claptap"
 keywords = ["typing", "tui", "terminal", "wpm"]
 categories = ["command-line-utilities", "games"]
+include = ["/src/", "/words/", "/LICENSE", "/README.md", "/CHANGELOG.md"]
 
 [dependencies]
 clap = { version = "4.6.7", features = ["derive"] }

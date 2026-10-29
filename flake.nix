@@ -24,7 +24,7 @@
           meta = {
             description = "A typing test for the terminal, with stats and graphs";
             homepage = "https://github.com/alexpill/claptap";
-            license = pkgs.lib.licenses.mit;
+            license = with pkgs.lib.licenses; [ mit cc-by-sa-40 ];
             mainProgram = "claptap";
           };
         };

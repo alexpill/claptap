@@ -1,0 +1,20 @@
+name: Language or layout request
+description: Ask for a built-in word list or keyboard layout
+labels: [enhancement]
+body:
+  - type: dropdown
+    attributes:
+      label: Kind
+      options: [Word list, Keyboard layout]
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Name
+      placeholder: e.g. german, bépo
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Source
+      description: For word lists, a frequency list and its license. For layouts, a link to the layout.

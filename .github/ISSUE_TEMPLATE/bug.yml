@@ -1,0 +1,26 @@
+name: Bug report
+description: Something doesn't work or looks wrong
+labels: [bug]
+body:
+  - type: textarea
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got. A screenshot helps for display issues.
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: claptap version
+      description: Output of `claptap --version`
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Terminal and OS
+      placeholder: e.g. kitty 0.39 on NixOS, Windows Terminal on Windows 11
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Command line
+      placeholder: e.g. claptap --words 25 --lang french --hands
