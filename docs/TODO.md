@@ -112,7 +112,8 @@ Type real code: symbols, indentation and newlines. A strong selling point for a 
 
 ## Phase 3 — History and stats dashboard
 
-- [ ] **(v0.1)** `history::read_all()` tolerant of bad lines (skip + count them, warn once, never crash)
+- [x] **(v0.1)** `history::read_all()` tolerant of bad lines (skip + count them, never crash); `append` adds a newline after a truncated last line
+- [ ] Stats screen shows "N unreadable lines skipped in history.jsonl" when `read_all` skipped some
 - [ ] `claptap stats` subcommand and a stats screen reachable from the app
 - [ ] btop-style dashboard: WPM over sessions graph (with moving average), accuracy graph
 - [ ] Breakdown table by language × mode: runs, best, average, last 10 average
